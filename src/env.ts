@@ -27,6 +27,12 @@ export const env = createEnv({
     DB_PASS: z.string().optional(),
     DB_NAME: z.string().min(3).optional(),
     DB_URL: z.string().url().optional(),
+    GITHUB_ID: z.string().optional(),
+    GITHUB_SECRET: z.string().optional(),
+    GOOGLE_CLIENT_ID: z.string(),
+    GOOGLE_CLIENT_SECRET: z.string(),
+    NEXTAUTH_SECRET: z.string(),
+    NEXTAUTH_URL: z.string().optional(),
   },
 
   runtimeEnv: {
@@ -40,6 +46,12 @@ export const env = createEnv({
     DB_NAME: process.env.DB_NAME,
     NODE_ENV: process.env.NODE_ENV,
     DB_URL: process.env.DB_URL || process.env.DATABASE_URL,
+    GITHUB_ID: process.env.GITHUB_ID,
+    GITHUB_SECRET: process.env.GITHUB_SECRET,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
 
   /**
