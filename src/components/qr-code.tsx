@@ -3,8 +3,8 @@
 import type { Options } from "qr-code-styling"
 import QRCodeStyling from "qr-code-styling"
 import type React from "react"
-import { useEffect, useMemo, useRef } from "react"
-import logo from "@/assets/logo.svg"
+import { useEffect, useMemo, useRef, useState } from "react"
+import logo from "@/assets/logo.png"
 import type { QrOptions } from "@/lib/qr-config"
 import { cn } from "@/lib/utils"
 
@@ -24,11 +24,23 @@ export function QrCode({
 }: QrCodeProps) {
   const ref = useRef<HTMLDivElement>(null)
 
+  const [themeColor, setThemeColor] = useState("#000000")
+
+  useEffect(() => {
+    const primary = getComputedStyle(document.documentElement)
+      .getPropertyValue("--primary")
+      .trim()
+    if (primary) {
+      setThemeColor(primary)
+    }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  }, [])
+
   const { style, background } = options
   const styled = style === "styled"
 
   const settings = useMemo<Options>(() => {
-    const color = styled ? "#1156ae" : "#000000"
+    const color = styled ? themeColor : "#000000"
     return {
       type: "canvas",
       width: size,
@@ -57,7 +69,7 @@ export function QrCode({
         color: background === "white" ? "#ffffff" : "transparent",
       },
     }
-  }, [url, styled, background, size])
+  }, [url, styled, background, size, themeColor])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: manually updated externally
   const qr = useMemo(() => new QRCodeStyling(settings), [])

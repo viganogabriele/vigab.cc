@@ -120,7 +120,11 @@ export function Dashboard() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between gap-4 items-center max-md:flex-col">
         <div className="flex items-center gap-4">
-          <Image src={logo} alt="PoliNetwork Logo" className="h-16 w-16" />
+          <Image
+            src={logo}
+            alt="PoliNetwork Logo"
+            className="h-16 w-16 bg-white rounded-md p-2"
+          />
           <div className="gap-2">
             <h1 className="text-3xl font-bold">{env.NEXT_PUBLIC_DOMAIN}</h1>
             <p className="text-muted-foreground max-md:text-sm">
@@ -277,19 +281,6 @@ export function Dashboard() {
           )}
         </CardContent>
       </Card>
-      <div className="flex text-center items-center justify-center gap-1">
-        <p className="text-muted-foreground text-sm">
-          Made with 💙 by{" "}
-          <a
-            href="https://vigab.cc"
-            target="_blank"
-            rel="noreferrer noopener"
-            className="underline underline-offset-2"
-          >
-            Gabriele Viganò
-          </a>
-        </p>
-      </div>
 
       <CreateUrlDialog
         open={createDialogOpen}

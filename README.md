@@ -1,6 +1,7 @@
-# polinet.cc - URL Shortener
+# vigab.cc - URL Shortener
 
-A Next.js URL shortener application for polinetwork.org domains.
+Based on the original project by [ToTo04](https://github.com/ToTo04) and [PoliNetwork](https://github.com/PoliNetworkOrg).
+Now strictly **Vibe Coded** by Gabriele via **Google Antigravity**.
 
 ## Features
 
@@ -9,7 +10,7 @@ A Next.js URL shortener application for polinetwork.org domains.
 - 🚀 **RESTful API**: Programmatic access for other services
 - 📈 **Click Tracking**: Monitor usage of your shortened URLs
 - 🗄️ **PostgreSQL**: Persistent storage with PostgreSQL database
-- 🎨 **Vibe Coded**: Claude wrote this, if it's broken blame him
+- 🎨 **Vibe Coded**: Entirely vibecoded using Google Antigravity
 
 ### Why?
 
