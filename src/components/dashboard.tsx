@@ -1,9 +1,10 @@
 "use client"
 
 import { SiGithub as Github } from "@icons-pack/react-simple-icons"
-import { FileCodeCorner, Plus, Search, Star } from "lucide-react"
+import { FileCodeCorner, LogOut, Plus, Search, Star } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { signOut } from "next-auth/react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useDebounce } from "use-debounce"
@@ -123,16 +124,24 @@ export function Dashboard() {
           <div className="gap-2">
             <h1 className="text-3xl font-bold">{env.NEXT_PUBLIC_DOMAIN}</h1>
             <p className="text-muted-foreground max-md:text-sm">
-              PoliNetwork's URL shortener dashboard
+              Gabriele Viganò URL shortener dashboard
             </p>
           </div>
         </div>
         <div className="flex justify-end gap-4 max-md:gap-2 flex-wrap">
+          <Button
+            size="icon-lg"
+            variant="ghost"
+            onClick={() => signOut({ callbackUrl: "/api/auth/signin" })}
+            title="Logout"
+          >
+            <LogOut />
+          </Button>
           <a
-            href="https://github.com/PoliNetworkOrg/polinet.cc"
+            href="https://github.com/viganogabriele/vigab.cc"
             className="underline flex items-center gap-1"
-            title="https://github.com/PoliNetworkOrg/polinet.cc"
-            aria-label="tmsu.cc github repository by Tommaso Morganti"
+            title="https://github.com/viganogabriele/vigab.cc"
+            aria-label="vigab.cc github repository by Gabriele Viganò"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -272,12 +281,12 @@ export function Dashboard() {
         <p className="text-muted-foreground text-sm">
           Made with 💙 by{" "}
           <a
-            href="https://polinetwork.org"
+            href="https://vigab.cc"
             target="_blank"
             rel="noreferrer noopener"
             className="underline underline-offset-2"
           >
-            PoliNetwork
+            Gabriele Viganò
           </a>
         </p>
       </div>
