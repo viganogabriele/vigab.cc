@@ -1,3 +1,4 @@
+
 import { createEnv } from "@t3-oss/env-nextjs"
 import { z } from "zod"
 
@@ -5,7 +6,7 @@ const PORT = 6111
 
 const domainSchema = z
   .string()
-  .default(`polinet.cc`)
+  .default(`vigab.cc`)
   .describe(
     "This is the domain to use as shortener. API available at /api and Admin dashboard at /admin"
   )
@@ -21,11 +22,11 @@ export const env = createEnv({
     // PUBLIC_URL: z.string().default(`https://polinet.cc`),
     // LOG_LEVEL: z.string().default("DEBUG"),
     DOMAIN: domainSchema,
-    DB_HOST: z.string().min(1),
+    DB_HOST: z.string().optional(),
     DB_PORT: z.coerce.number().min(1).max(65535).default(5432),
-    DB_USER: z.string().min(1),
-    DB_PASS: z.string().min(1),
-    DB_NAME: z.string().min(3).default("url_shortener"),
+    DB_USER: z.string().optional(),
+    DB_PASS: z.string().optional(),
+    DB_NAME: z.string().min(3).optional(),
     DB_URL: z.string().url().optional(),
   },
 
@@ -39,7 +40,7 @@ export const env = createEnv({
     DB_PASS: process.env.DB_PASS,
     DB_NAME: process.env.DB_NAME,
     NODE_ENV: process.env.NODE_ENV,
-    DB_URL: process.env.DB_URL,
+    DB_URL: process.env.DB_URL || process.env.DATABASE_URL,
   },
 
   /**

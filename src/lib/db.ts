@@ -5,19 +5,19 @@ let pool: Pool | null = null
 
 const DB_CONNECTION: PoolConfig = env.DB_URL
   ? {
-      connectionString: env.DB_URL,
-    }
+    connectionString: env.DB_URL,
+  }
   : {
-      host: env.DB_HOST,
-      port: env.DB_PORT,
-      user: env.DB_USER,
-      password: env.DB_PASS,
-      database: env.DB_NAME,
-    }
+    host: env.DB_HOST,
+    port: env.DB_PORT,
+    user: env.DB_USER,
+    password: env.DB_PASS,
+    database: env.DB_NAME,
+  }
 
 export function getPool(): Pool {
   if (!pool) {
-    pool = new Pool({ ...DB_CONNECTION })
+    pool = new Pool(DB_CONNECTION)
   }
   return pool
 }
