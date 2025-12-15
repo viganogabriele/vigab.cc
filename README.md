@@ -1,7 +1,9 @@
 # vigab.cc - URL Shortener
 
-Based on the original project by [ToTo04](https://github.com/ToTo04) and [PoliNetwork](https://github.com/PoliNetworkOrg).
+Based on the original project by [ToTo04](https://github.com/ToTo04) and [PoliNetwork](https://github.com/polinet.cc).
 Now strictly **Vibe Coded** by Gabriele via **Google Antigravity**.
+
+Description of @toto04's project:
 
 ## Features
 
@@ -10,7 +12,7 @@ Now strictly **Vibe Coded** by Gabriele via **Google Antigravity**.
 - 🚀 **RESTful API**: Programmatic access for other services
 - 📈 **Click Tracking**: Monitor usage of your shortened URLs
 - 🗄️ **PostgreSQL**: Persistent storage with PostgreSQL database
-- 🎨 **Vibe Coded**: Entirely vibecoded using Google Antigravity
+- 🎨 **Vibe Coded**: Entirely vibecoded using Claude
 
 ### Why?
 
