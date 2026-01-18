@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "https://vigab-links.vercel.app"
+    }
+  ]
+}
