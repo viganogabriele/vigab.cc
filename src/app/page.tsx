@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 
 export default async function HomePage() {
-  // Redirect to the Home page
-  redirect("https://viganogabriele.com")
+  // Commented to  redirect to vigab.cc
+  //redirect("https://viganogabriele.com")
+  return null
 }

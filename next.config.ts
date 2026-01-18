@@ -8,6 +8,18 @@ const nextConfig: NextConfig = {
   output: "standalone",
   transpilePackages: ["@t3-oss/env-nextjs", "@t3-oss/env-core"],
   experimental: { reactCompiler: true, swcTraceProfiling: ANALYZE_AND_PROFILE },
+
+  // Added for routing to vigab-links
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: "/",
+          destination: "https://vigab-links.vercel.app",
+        },
+      ],
+    }
+  },
 }
 
 export default withBundleAnalyzer(nextConfig)
