@@ -242,12 +242,12 @@ export function Dashboard() {
               {/* Tag filter */}
               {allTags.length > 0 && (
                 <div className="flex items-center gap-1">
-                  <Tag className="h-4 w-4 text-muted-foreground" />
                   <Select
                     value={activeTag ?? "__all__"}
                     onValueChange={handleTagFilter}
                   >
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-[160px] flex items-center gap-2">
+                      <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
                       <SelectValue placeholder="All tags" />
                     </SelectTrigger>
                     <SelectContent>
