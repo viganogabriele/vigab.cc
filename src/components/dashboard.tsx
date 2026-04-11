@@ -1,11 +1,11 @@
 "use client"
 
 import { SiGithub as Github } from "@icons-pack/react-simple-icons"
-import { FileCodeCorner, LogOut, Plus, Search, Star } from "lucide-react"
+import { FileCodeCorner, LogOut, Plus, Search, Star, Tag, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { signOut } from "next-auth/react"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import { useDebounce } from "use-debounce"
 import logo from "@/assets/logo.png"
@@ -33,9 +33,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { env } from "@/env"
-import { useUrls } from "@/hooks/urls"
+import { useAllTags, useUrls } from "@/hooks/urls"
 import type { UrlRecord, UrlsQueryParams } from "@/lib/schemas"
-import { copyToClipboard, makeShortUrl } from "@/lib/utils"
+import { copyToClipboard, getTagColor, makeShortUrl } from "@/lib/utils"
 import { CreateUrlDialog } from "./create-url-dialog"
 import { type EditDialogState, EditUrlDialog } from "./edit-url-dialog"
 import { PaginationControls } from "./pagination"
@@ -52,6 +52,7 @@ export function Dashboard() {
     sortBy: "created_at",
     sortOrder: "desc",
   })
+
   // Merge debounced search with query params
   const queryParams: UrlsQueryParams = {
     ...qp,
@@ -59,6 +60,7 @@ export function Dashboard() {
   }
 
   const { urls, pagination, loading, refetch } = useUrls(queryParams)
+  const { tags: allTags, refetch: refetchTags } = useAllTags()
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ open: false })
@@ -67,10 +69,18 @@ export function Dashboard() {
     url?: UrlRecord
   }>({ open: false })
 
-  const handleCustomOnlyToggle = () => {
+  const handleStarredToggle = () => {
     setQueryParams((prev) => ({
       ...prev,
       customOnly: !prev.customOnly,
+      page: 1,
+    }))
+  }
+
+  const handleTagFilter = (tag: string) => {
+    setQueryParams((prev) => ({
+      ...prev,
+      tag: tag === "__all__" ? undefined : tag,
       page: 1,
     }))
   }
@@ -114,7 +124,28 @@ export function Dashboard() {
     }
   }
 
+  const handleToggleStar = useCallback(
+    async (url: UrlRecord) => {
+      try {
+        const response = await fetch(`/api/urls/${url.short_code}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_starred: !url.is_starred }),
+        })
+        if (response.ok) {
+          refetch()
+        } else {
+          toast.error("Failed to update star")
+        }
+      } catch {
+        toast.error("Failed to update star")
+      }
+    },
+    [refetch]
+  )
+
   const currentSort = `${qp.sortBy}-${qp.sortOrder}`
+  const activeTag = qp.tag
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -207,14 +238,58 @@ export function Dashboard() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Tag filter */}
+              {allTags.length > 0 && (
+                <div className="flex items-center gap-1">
+                  <Tag className="h-4 w-4 text-muted-foreground" />
+                  <Select
+                    value={activeTag ?? "__all__"}
+                    onValueChange={handleTagFilter}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="All tags" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All tags</SelectItem>
+                      {allTags.map((tag) => {
+                        const color = getTagColor(tag)
+                        return (
+                          <SelectItem key={tag} value={tag}>
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full"
+                                style={{ backgroundColor: color.text }}
+                              />
+                              {tag}
+                            </span>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {activeTag && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleTagFilter("__all__")}
+                      title="Clear tag filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              )}
+
               <Toggle
                 pressed={queryParams.customOnly}
-                onPressedChange={handleCustomOnlyToggle}
+                onPressedChange={handleStarredToggle}
                 variant="outline"
                 className="data-[state=on]:*:[svg]:fill-yellow-300 data-[state=on]:*:[svg]:stroke-yellow-300 flex-[1_0_auto]"
               >
                 <Star className="h-4 w-4" />
-                Show Custom Only
+                Starred Only
               </Toggle>
             </div>
           </div>
@@ -239,6 +314,7 @@ export function Dashboard() {
                     onDelete={(url) => handleDelete(url.short_code)}
                     onEdit={(url) => setEditDialog({ open: true, url })}
                     onQrCode={(url) => setQrDialog({ open: true, url })}
+                    onToggleStar={handleToggleStar}
                   />
                 ))}
               </div>
@@ -264,6 +340,7 @@ export function Dashboard() {
                       onDelete={(url) => handleDelete(url.short_code)}
                       onEdit={(url) => setEditDialog({ open: true, url })}
                       onQrCode={(url) => setQrDialog({ open: true, url })}
+                      onToggleStar={handleToggleStar}
                     />
                   ))}
                 </TableBody>
@@ -287,6 +364,7 @@ export function Dashboard() {
         onOpenChange={setCreateDialogOpen}
         onSuccess={() => {
           refetch()
+          refetchTags()
           setCreateDialogOpen(false)
         }}
       />
@@ -296,6 +374,7 @@ export function Dashboard() {
         onClose={() => setEditDialog({ open: false })}
         onSuccess={() => {
           refetch()
+          refetchTags()
           setEditDialog({ open: false })
         }}
       />

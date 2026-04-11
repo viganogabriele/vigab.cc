@@ -59,6 +59,37 @@ async function initDatabase() {
   }
 }
 
+async function migrateDatabase() {
+  const pool = getPool()
+  try {
+    // Add scalar columns added in previous migrations (idempotent)
+    await pool.query(`
+      ALTER TABLE urls ADD COLUMN IF NOT EXISTS is_starred BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE urls ADD COLUMN IF NOT EXISTS tag VARCHAR(50) DEFAULT NULL;
+      CREATE INDEX IF NOT EXISTS idx_is_starred ON urls(is_starred);
+    `)
+
+    // Multi-tag junction table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS url_tags (
+        url_id INTEGER NOT NULL REFERENCES urls(id) ON DELETE CASCADE,
+        tag_name VARCHAR(50) NOT NULL,
+        PRIMARY KEY (url_id, tag_name)
+      );
+      CREATE INDEX IF NOT EXISTS idx_url_tags_tag_name ON url_tags(tag_name);
+    `)
+
+    // Migrate any existing single-tag values into the new table
+    await pool.query(`
+      INSERT INTO url_tags (url_id, tag_name)
+      SELECT id, tag FROM urls WHERE tag IS NOT NULL
+      ON CONFLICT DO NOTHING;
+    `)
+  } catch (error) {
+    console.error("Error running database migrations:", error)
+  }
+}
+
 let init = false
 // Skip initialization if env where not validated
 // this doesn't prevent DB calls to be made, but if the env is not validated
@@ -67,10 +98,12 @@ let init = false
 if (!init && !process.env.SKIP_ENV_VALIDATION) {
   init = true
   initDatabase()
+    .then(() => migrateDatabase())
     .then(() => {
-      console.log("Database initialized successfully")
+      console.log("Database initialized and migrated successfully")
     })
     .catch((error) => {
       console.error("Error during database initialization:", error)
     })
 }
+

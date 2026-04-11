@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   Copy,
-  Diamond,
   Edit,
   GitBranch,
   Pointer,
@@ -10,7 +9,7 @@ import {
   Trash2,
 } from "lucide-react"
 import type { UrlRecord } from "@/lib/schemas"
-import { copyToClipboard, makeShortUrl } from "@/lib/utils"
+import { copyToClipboard, getTagColor, makeShortUrl } from "@/lib/utils"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { TableCell, TableRow } from "./ui/table"
@@ -21,6 +20,48 @@ export type UrlRecordRowProps = {
   onDelete: (url: UrlRecord) => void
   onEdit: (url: UrlRecord) => void
   onQrCode: (url: UrlRecord) => void
+  onToggleStar: (url: UrlRecord) => void
+}
+
+function TagBadges({ tags }: { tags: string[] }) {
+  if (!tags || tags.length === 0) return null
+  return (
+    <>
+      {tags.map((tag) => {
+        const c = getTagColor(tag)
+        return (
+          <span
+            key={tag}
+            style={{ backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}` }}
+            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+          >
+            {tag}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
+function StarButton({ starred, onClick }: { starred: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="focus:outline-none transition-transform hover:scale-110 active:scale-95"
+      aria-label={starred ? "Unstar URL" : "Star URL"}
+      title={starred ? "Remove from starred" : "Mark as starred"}
+    >
+      <Star
+        className="h-4 w-4"
+        style={
+          starred
+            ? { fill: "#facc15", stroke: "#ca8a04" }
+            : { fill: "transparent", stroke: "currentColor", opacity: 0.4 }
+        }
+      />
+    </button>
+  )
 }
 
 export function MobileRow({
@@ -29,17 +70,13 @@ export function MobileRow({
   onDelete,
   onEdit,
   onQrCode,
+  onToggleStar,
 }: UrlRecordRowProps) {
   const shortUrl = makeShortUrl(url)
   return (
     <div className="flex flex-col gap-1 border rounded-md py-2 px-4">
       <div className="flex justify-start gap-2 items-center">
-        {url.is_custom ? (
-          <Star className="h-4 w-4 fill-yellow-400 stroke-yellow-400" />
-        ) : (
-          <Diamond className="h-4 w-4 fill-gray-400 stroke-gray-400" />
-        )}
-
+        <StarButton starred={url.is_starred} onClick={() => onToggleStar(url)} />
         <a
           href={shortUrl}
           target="_blank"
@@ -64,6 +101,11 @@ export function MobileRow({
           <Copy />
         </Button>
       </div>
+      {url.tags && url.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 pl-6">
+          <TagBadges tags={url.tags} />
+        </div>
+      )}
       <div className="flex justify-start gap-2 items-center">
         <ArrowRight className="text-blue-400" />
         <a
@@ -109,16 +151,12 @@ export function MobileRow({
 export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
   const shortUrl = makeShortUrl(url)
   return (
-    <TableRow key={url.id} className="max-sm:hidden">
+    <TableRow key={url.id}>
       <TableCell>
-        {url.is_custom ? (
-          <Star className="h-4 w-4 fill-yellow-400 stroke-yellow-400" />
-        ) : (
-          <Diamond className="h-4 w-4 fill-gray-400 stroke-gray-400" />
-        )}
+        <StarButton starred={url.is_starred} onClick={() => props.onToggleStar(url)} />
       </TableCell>
       <TableCell>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <a
             href={shortUrl}
             target="_blank"
@@ -138,6 +176,7 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
               +{url.aliases.length}
             </Badge>
           )}
+          <TagBadges tags={url.tags ?? []} />
           <Button variant="ghost" size="icon" onClick={() => props.onCopy(url)}>
             <Copy />
           </Button>
@@ -173,21 +212,13 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => props.onQrCode(url)}
-          >
+          <Button variant="ghost" size="icon" onClick={() => props.onQrCode(url)}>
             <QrCode />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => props.onEdit(url)}>
             <Edit />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => props.onDelete(url)}
-          >
+          <Button variant="ghost" size="icon" onClick={() => props.onDelete(url)}>
             <Trash2 className="stroke-destructive" />
           </Button>
         </div>

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { PaginatedUrlsResponse, type UrlsQueryParams } from "@/lib/schemas"
+import { z } from "zod"
 
 async function fetchUrls(params: UrlsQueryParams) {
   const queryParams = new URLSearchParams()
@@ -11,6 +12,7 @@ async function fetchUrls(params: UrlsQueryParams) {
   if (params.sortBy) queryParams.set("sortBy", params.sortBy)
   if (params.sortOrder) queryParams.set("sortOrder", params.sortOrder)
   if (params.customOnly) queryParams.set("customOnly", "true")
+  if (params.tag) queryParams.set("tag", params.tag)
 
   const response = await fetch(`/api/urls?${queryParams.toString()}`)
 
@@ -19,6 +21,12 @@ async function fetchUrls(params: UrlsQueryParams) {
   }
 
   return PaginatedUrlsResponse.parse(await response.json())
+}
+
+async function fetchTags(): Promise<string[]> {
+  const response = await fetch("/api/tags")
+  if (!response.ok) return []
+  return z.array(z.string()).parse(await response.json())
 }
 
 export function useUrls(params: UrlsQueryParams = {}) {
@@ -47,6 +55,19 @@ export function useUrls(params: UrlsQueryParams = {}) {
     pagination: query.data?.pagination,
     loading: query.isLoading,
     error: query.error,
+    refetch: query.refetch,
+  }
+}
+
+export function useAllTags() {
+  const query = useQuery({
+    queryKey: ["tags"],
+    queryFn: fetchTags,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+  return {
+    tags: query.data ?? [],
+    loading: query.isLoading,
     refetch: query.refetch,
   }
 }
