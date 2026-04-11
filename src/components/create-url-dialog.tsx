@@ -3,7 +3,7 @@
 import { getFormProps, getInputProps, useForm } from "@conform-to/react"
 import { getZodConstraint, parseWithZod } from "@conform-to/zod"
 import { nanoid } from "nanoid"
-import { useActionState, useCallback, useEffect, useRef } from "react"
+import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,6 +20,8 @@ import { env } from "@/env"
 import { createUrl } from "@/lib/actions"
 import { createUrlSchema } from "@/lib/validations"
 import { RandomText } from "./random-text"
+import { X } from "lucide-react"
+import { Badge } from "./ui/badge"
 
 interface CreateUrlDialogProps {
   open: boolean
@@ -53,6 +55,8 @@ export function CreateUrlDialog({
   useEffect(() => {
     if (lastResult && !error) {
       toast.success("Short URL created successfully!")
+      setAliases([])
+      setAliasInput("")
       onSuccessRef.current()
     } else if (lastResult && error) {
       console.error("Error creating URL:", error)
@@ -63,6 +67,31 @@ export function CreateUrlDialog({
   const randomCode = useCallback(() => nanoid(8), [])
   const isRandom = !(fields.shortCode.value && fields.shortCode.valid)
 
+  // Aliases state (managed locally; submitted as hidden inputs)
+  const [aliases, setAliases] = useState<string[]>([])
+  const [aliasInput, setAliasInput] = useState("")
+  const [aliasError, setAliasError] = useState<string | null>(null)
+
+  const addAlias = () => {
+    const trimmed = aliasInput.trim()
+    if (!trimmed) return
+    if (!/^[a-zA-Z0-9_-]{2,25}$/.test(trimmed)) {
+      setAliasError("2–25 chars, letters/numbers/hyphens/underscores only")
+      return
+    }
+    if (aliases.includes(trimmed)) {
+      setAliasError("Alias already added")
+      return
+    }
+    setAliases((prev) => [...prev, trimmed])
+    setAliasInput("")
+    setAliasError(null)
+  }
+
+  const removeAlias = (alias: string) => {
+    setAliases((prev) => prev.filter((a) => a !== alias))
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -70,7 +99,7 @@ export function CreateUrlDialog({
           <DialogTitle>Create Short URL</DialogTitle>
           <DialogDescription>
             Enter a URL to create a shortened version. Optionally specify a
-            custom short code.
+            custom short code and aliases.
           </DialogDescription>
         </DialogHeader>
         <form {...getFormProps(form, {})} action={action}>
@@ -106,9 +135,64 @@ export function CreateUrlDialog({
                 {...getInputProps(fields.shortCode, { type: "text" })}
                 placeholder="custom-code (optional)"
                 className="col-span-3"
-                title="Short code can only contain letters, numbers, hyphens and underscores (2-20 characters)"
+                title="Short code can only contain letters, numbers, hyphens and underscores (2-25 characters)"
               />
             </div>
+
+            {/* Aliases section */}
+            <div className="col-span-4 mb-2">
+              <Label className="text-sm mb-1 block">Aliases (optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={aliasInput}
+                  onChange={(e) => {
+                    setAliasInput(e.target.value)
+                    setAliasError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addAlias()
+                    }
+                  }}
+                  placeholder="wiki, wikipedia, word…"
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={addAlias}>
+                  Add
+                </Button>
+              </div>
+              {aliasError && (
+                <p className="text-xs text-red-600 mt-1">{aliasError}</p>
+              )}
+              {aliases.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {aliases.map((alias) => (
+                    <Badge key={alias} variant="secondary" className="gap-1">
+                      {alias}
+                      <button
+                        type="button"
+                        onClick={() => removeAlias(alias)}
+                        className="ml-1 hover:text-destructive"
+                        aria-label={`Remove alias ${alias}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {/* Hidden inputs to submit aliases as form data */}
+              {aliases.map((alias, i) => (
+                <input
+                  key={alias}
+                  type="hidden"
+                  name={`aliases[${i}]`}
+                  value={alias}
+                />
+              ))}
+            </div>
+
             <div className="col-span-4 text-sm text-muted-foreground">
               If you leave <i>Short Code</i> empty, a random one will be
               auto-generated upon submission.
@@ -124,6 +208,11 @@ export function CreateUrlDialog({
                 <span>{fields.shortCode.value}</span>
               )}
             </p>
+            {aliases.map((alias) => (
+              <p key={alias} className="font-mono mx-auto text-xs opacity-70">
+                https://{env.NEXT_PUBLIC_DOMAIN}/{alias}
+              </p>
+            ))}
           </div>
           <DialogFooter>
             <Button

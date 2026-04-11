@@ -40,6 +40,16 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_created_at ON urls(created_at);
     CREATE INDEX IF NOT EXISTS idx_updated_at ON urls(updated_at);
     CREATE INDEX IF NOT EXISTS idx_click_count ON urls(click_count);
+
+    CREATE TABLE IF NOT EXISTS url_aliases (
+      id SERIAL PRIMARY KEY,
+      url_id INTEGER NOT NULL REFERENCES urls(id) ON DELETE CASCADE,
+      alias_code VARCHAR(25) UNIQUE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_alias_code ON url_aliases(alias_code);
+    CREATE INDEX IF NOT EXISTS idx_alias_url_id ON url_aliases(url_id);
   `
 
   try {

@@ -2,7 +2,8 @@
 
 import { getFormProps, getInputProps, useForm } from "@conform-to/react"
 import { getZodConstraint, parseWithZod } from "@conform-to/zod"
-import { useActionState, useEffect, useRef } from "react"
+import { X } from "lucide-react"
+import { useActionState, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,10 +16,11 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { editUrl } from "@/lib/actions"
+import { addAlias, editUrl, removeAlias } from "@/lib/actions"
 import type { UrlRecord } from "@/lib/schemas"
 import { makeShortUrl } from "@/lib/utils"
 import { editUrlSchema } from "@/lib/validations"
+import { Badge } from "./ui/badge"
 
 export type EditDialogState =
   | {
@@ -67,6 +69,72 @@ export function EditUrlDialog({
       toast.error(`Error editing URL: ${error}`)
     }
   }, [lastResult, error])
+
+  // Alias management (local state mirroring what's in the DB)
+  const urlAliases = state.open ? (state.url.aliases ?? []) : []
+  const [localAliases, setLocalAliases] = useState<string[]>(urlAliases)
+  const [aliasInput, setAliasInput] = useState("")
+  const [aliasError, setAliasError] = useState<string | null>(null)
+  const [aliasLoading, setAliasLoading] = useState(false)
+
+  // Sync when dialog opens with a new URL
+  useEffect(() => {
+    if (state.open) {
+      setLocalAliases(state.url.aliases ?? [])
+      setAliasInput("")
+      setAliasError(null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.open ? state.url.id : null])
+
+  const handleAddAlias = async () => {
+    if (!state.open) return
+    const trimmed = aliasInput.trim()
+    if (!trimmed) return
+    if (!/^[a-zA-Z0-9_-]{2,25}$/.test(trimmed)) {
+      setAliasError("2–25 chars, letters/numbers/hyphens/underscores only")
+      return
+    }
+    if (localAliases.includes(trimmed)) {
+      setAliasError("Alias already added")
+      return
+    }
+    setAliasLoading(true)
+    try {
+      const fd = new FormData()
+      fd.set("urlId", String(state.url.id))
+      fd.set("aliasCode", trimmed)
+      const result = await addAlias({ error: null, lastResult: null }, fd)
+      if (result.error) {
+        setAliasError(result.error)
+      } else {
+        setLocalAliases((prev) => [...prev, trimmed])
+        setAliasInput("")
+        setAliasError(null)
+        toast.success(`Alias "/${trimmed}" added`)
+        onSuccessRef.current()
+      }
+    } catch {
+      setAliasError("Failed to add alias")
+    } finally {
+      setAliasLoading(false)
+    }
+  }
+
+  const handleRemoveAlias = async (alias: string) => {
+    if (!state.open) return
+    setAliasLoading(true)
+    try {
+      await removeAlias(state.url.id, alias)
+      setLocalAliases((prev) => prev.filter((a) => a !== alias))
+      toast.success(`Alias "/${alias}" removed`)
+      onSuccessRef.current()
+    } catch {
+      toast.error("Failed to remove alias")
+    } finally {
+      setAliasLoading(false)
+    }
+  }
 
   return (
     <Dialog open={state.open} onOpenChange={(open) => !open && onClose()}>
@@ -117,6 +185,64 @@ export function EditUrlDialog({
                 />
               </div>
             </div>
+
+            {/* Alias management */}
+            <div className="mb-4">
+              <Label className="text-sm mb-2 block">Aliases</Label>
+              <div className="flex gap-2 mb-2">
+                <Input
+                  value={aliasInput}
+                  onChange={(e) => {
+                    setAliasInput(e.target.value)
+                    setAliasError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      handleAddAlias()
+                    }
+                  }}
+                  placeholder="Add alias short code…"
+                  className="flex-1"
+                  disabled={aliasLoading}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddAlias}
+                  disabled={aliasLoading}
+                >
+                  Add
+                </Button>
+              </div>
+              {aliasError && (
+                <p className="text-xs text-red-600 mb-1">{aliasError}</p>
+              )}
+              {localAliases.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {localAliases.map((alias) => (
+                    <Badge key={alias} variant="secondary" className="gap-1">
+                      /{alias}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAlias(alias)}
+                        disabled={aliasLoading}
+                        className="ml-1 hover:text-destructive disabled:opacity-50"
+                        aria-label={`Remove alias ${alias}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No aliases yet. Add one above.
+                </p>
+              )}
+            </div>
+
             <DialogFooter>
               <Button
                 type="button"

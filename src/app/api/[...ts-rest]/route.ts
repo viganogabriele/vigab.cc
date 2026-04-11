@@ -23,7 +23,8 @@ const handler = createNextHandler(
       try {
         const urlRecord = await urlService.createShortUrl(
           body.url,
-          body.shortCode
+          body.shortCode,
+          body.aliases
         )
         return {
           status: 201,
@@ -71,6 +72,55 @@ const handler = createNextHandler(
         return {
           status: 404,
           body: { error: "URL not found" },
+        }
+      }
+      return {
+        status: 204,
+        body: undefined,
+      }
+    },
+    addAlias: async ({ params, body }) => {
+      const urlRecord = await urlService.getUrlByShortCode(params.shortCode)
+      if (!urlRecord) {
+        return {
+          status: 404,
+          body: { error: "URL not found" },
+        }
+      }
+      try {
+        await urlService.addAlias(urlRecord.id, body.aliasCode)
+        // Return the newly created alias row
+        const aliasRow = await urlService.getAliasRow(urlRecord.id, body.aliasCode)
+        return {
+          status: 201,
+          body: aliasRow!,
+        }
+      } catch (error) {
+        return {
+          status: 400,
+          body: {
+            error:
+              error instanceof Error ? error.message : "Failed to add alias",
+          },
+        }
+      }
+    },
+    removeAlias: async ({ params }) => {
+      const urlRecord = await urlService.getUrlByShortCode(params.shortCode)
+      if (!urlRecord) {
+        return {
+          status: 404,
+          body: { error: "URL not found" },
+        }
+      }
+      const deleted = await urlService.removeAlias(
+        urlRecord.id,
+        params.aliasCode
+      )
+      if (!deleted) {
+        return {
+          status: 404,
+          body: { error: "Alias not found" },
         }
       }
       return {

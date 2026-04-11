@@ -1,6 +1,11 @@
 import { initContract } from "@ts-rest/core"
 import z from "zod"
-import { GetUrlsQueryParams, PaginatedUrlsResponse, URLRecord } from "./schemas"
+import {
+  AliasRecord,
+  GetUrlsQueryParams,
+  PaginatedUrlsResponse,
+  URLRecord,
+} from "./schemas"
 import { createUrlSchema } from "./validations"
 
 const c = initContract()
@@ -8,6 +13,8 @@ const c = initContract()
 const APIError = z.object({
   error: z.string(),
 })
+
+const aliasBody = z.object({ aliasCode: z.string().min(2).max(25) })
 
 export const contract = c.router({
   getAllUrls: {
@@ -55,5 +62,25 @@ export const contract = c.router({
       404: APIError,
     },
     summary: "Delete a short URL",
+  },
+  addAlias: {
+    method: "POST",
+    path: "/urls/:shortCode/aliases",
+    body: aliasBody,
+    responses: {
+      201: AliasRecord,
+      400: APIError,
+      404: APIError,
+    },
+    summary: "Add an alias to a short URL",
+  },
+  removeAlias: {
+    method: "DELETE",
+    path: "/urls/:shortCode/aliases/:aliasCode",
+    responses: {
+      204: z.void(),
+      404: APIError,
+    },
+    summary: "Remove an alias from a short URL",
   },
 })

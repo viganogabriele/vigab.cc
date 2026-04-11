@@ -3,6 +3,7 @@ import {
   Copy,
   Diamond,
   Edit,
+  GitBranch,
   Pointer,
   QrCode,
   Star,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react"
 import type { UrlRecord } from "@/lib/schemas"
 import { copyToClipboard, makeShortUrl } from "@/lib/utils"
+import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { TableCell, TableRow } from "./ui/table"
 
@@ -47,6 +49,17 @@ export function MobileRow({
           <span className="max-sm:hidden">{shortUrl}</span>
           <span className="sm:hidden">/{url.short_code}</span>
         </a>
+        {url.aliases && url.aliases.length > 0 && (
+          <Badge
+            variant="outline"
+            className="text-xs gap-1 cursor-pointer"
+            onClick={() => onEdit(url)}
+            title={url.aliases.map((a) => `/${a}`).join(", ")}
+          >
+            <GitBranch className="h-3 w-3" />
+            +{url.aliases.length}
+          </Badge>
+        )}
         <Button variant="ghost" size="icon" onClick={() => onCopy(url)}>
           <Copy />
         </Button>
@@ -114,6 +127,17 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
           >
             {shortUrl}
           </a>
+          {url.aliases && url.aliases.length > 0 && (
+            <Badge
+              variant="outline"
+              className="text-xs gap-1 cursor-pointer"
+              onClick={() => props.onEdit(url)}
+              title={url.aliases.map((a) => `/${a}`).join(", ")}
+            >
+              <GitBranch className="h-3 w-3" />
+              +{url.aliases.length}
+            </Badge>
+          )}
           <Button variant="ghost" size="icon" onClick={() => props.onCopy(url)}>
             <Copy />
           </Button>
