@@ -9,7 +9,12 @@ import {
   Trash2,
 } from "lucide-react"
 import type { UrlRecord } from "@/lib/schemas"
-import { copyToClipboard, getTagColor, makeShortUrl, relativeTime } from "@/lib/utils"
+import {
+  copyToClipboard,
+  getTagColor,
+  makeShortUrl,
+  relativeTime,
+} from "@/lib/utils"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { TableCell, TableRow } from "./ui/table"
@@ -53,7 +58,13 @@ function TagBadges({ tags }: { tags: string[] }) {
   )
 }
 
-function StarButton({ starred, onClick }: { starred: boolean; onClick: () => void }) {
+function StarButton({
+  starred,
+  onClick,
+}: {
+  starred: boolean
+  onClick: () => void
+}) {
   return (
     <button
       type="button"
@@ -87,7 +98,10 @@ export function MobileRow({
   return (
     <div className="flex flex-col gap-1 border rounded-md py-2 px-4">
       <div className="flex justify-start gap-2 items-center">
-        <StarButton starred={url.is_starred} onClick={() => onToggleStar(url)} />
+        <StarButton
+          starred={url.is_starred}
+          onClick={() => onToggleStar(url)}
+        />
         <a
           href={shortUrl}
           target="_blank"
@@ -100,17 +114,17 @@ export function MobileRow({
         {url.aliases && url.aliases.length > 0 && (
           <Badge
             variant="outline"
-            role="button"
-            tabIndex={0}
-            className="text-xs gap-1 cursor-pointer hover:bg-accent transition-colors"
-            onClick={() => onAliasStats(url)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAliasStats(url) }
-            }}
-            title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
+            asChild
+            className="gap-1 cursor-pointer hover:bg-accent transition-colors"
           >
-            <GitBranch className="h-3 w-3" />
-            {url.aliases.length}
+            <button
+              type="button"
+              onClick={() => onAliasStats(url)}
+              title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
+            >
+              <GitBranch className="h-3 w-3" />
+              {url.aliases.length}
+            </button>
           </Badge>
         )}
         <Button variant="ghost" size="icon" onClick={() => onCopy(url)}>
@@ -174,7 +188,10 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
   return (
     <TableRow key={url.id}>
       <TableCell>
-        <StarButton starred={url.is_starred} onClick={() => props.onToggleStar(url)} />
+        <StarButton
+          starred={url.is_starred}
+          onClick={() => props.onToggleStar(url)}
+        />
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2 flex-wrap">
@@ -189,17 +206,17 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
           {url.aliases && url.aliases.length > 0 && (
             <Badge
               variant="outline"
-              role="button"
-              tabIndex={0}
-              className="text-xs gap-1 cursor-pointer hover:bg-accent transition-colors"
-              onClick={() => props.onAliasStats(url)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); props.onAliasStats(url) }
-              }}
-              title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
+              asChild
+              className="gap-1 cursor-pointer hover:bg-accent transition-colors"
             >
-              <GitBranch className="h-3 w-3" />
-              {url.aliases.length}
+              <button
+                type="button"
+                onClick={() => props.onAliasStats(url)}
+                title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
+              >
+                <GitBranch className="h-3 w-3" />
+                {url.aliases.length}
+              </button>
             </Badge>
           )}
           <TagBadges tags={url.tags ?? []} />
@@ -236,7 +253,9 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
       <TableCell className="text-center">
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="font-medium cursor-default">{url.click_count}</span>
+            <span className="font-medium cursor-default">
+              {url.click_count}
+            </span>
           </TooltipTrigger>
           <TooltipContent side="top">
             Last click: {relativeTime(url.last_clicked_at)}
@@ -245,13 +264,21 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => props.onQrCode(url)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => props.onQrCode(url)}
+          >
             <QrCode />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => props.onEdit(url)}>
             <Edit />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => props.onDelete(url)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => props.onDelete(url)}
+          >
             <Trash2 className="stroke-destructive" />
           </Button>
         </div>

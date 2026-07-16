@@ -29,13 +29,20 @@ export interface QrCodeDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function QrCodeDialog({ open, url, aliasCode, onOpenChange }: QrCodeDialogProps) {
+export function QrCodeDialog({
+  open,
+  url,
+  aliasCode,
+  onOpenChange,
+}: QrCodeDialogProps) {
   const [options, setOptions] = useState<QrOptions>(getDefaultQrOptions())
   const [imageData, setImageData] = useState<Blob | null>(null)
 
+  const shortCode = url?.short_code
+  // biome-ignore lint/correctness/useExhaustiveDependencies: aliasCode and shortCode are trigger deps — not read in the body but used to clear stale image when the target URL changes
   useEffect(() => {
     setImageData(null)
-  }, [aliasCode, url?.short_code])
+  }, [aliasCode, shortCode])
 
   const downloadUrl = useMemo(() => {
     if (imageData) {
@@ -137,9 +144,7 @@ export function QrCodeDialog({ open, url, aliasCode, onOpenChange }: QrCodeDialo
         <DialogFooter>
           <a
             href={downloadUrl ?? undefined}
-            download={
-              downloadUrl ? `polinet-qr-${targetCode}.png` : undefined
-            }
+            download={downloadUrl ? `polinet-qr-${targetCode}.png` : undefined}
           >
             <Button className="w-full" disabled={!downloadUrl}>
               <Download className="h-4 w-4" />

@@ -1,7 +1,15 @@
 "use client"
 
 import { SiGithub as Github } from "@icons-pack/react-simple-icons"
-import { FileCodeCorner, LogOut, Plus, Search, Star, Tag, X } from "lucide-react"
+import {
+  FileCodeCorner,
+  LogOut,
+  Plus,
+  Search,
+  Star,
+  Tag,
+  X,
+} from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { signOut } from "next-auth/react"
@@ -341,7 +349,9 @@ export function Dashboard() {
                     onCopy={(url) => copyToClipboard(makeShortUrl(url))}
                     onDelete={(url) => handleDelete(url.short_code)}
                     onEdit={(url) => setEditDialog({ open: true, url })}
-                    onQrCode={(url) => setQrDialog({ open: true, url, aliasCode: undefined })}
+                    onQrCode={(url) =>
+                      setQrDialog({ open: true, url, aliasCode: undefined })
+                    }
                     onToggleStar={handleToggleStar}
                     onAliasStats={handleAliasStats}
                   />
@@ -368,7 +378,9 @@ export function Dashboard() {
                       onCopy={(url) => copyToClipboard(makeShortUrl(url))}
                       onDelete={(url) => handleDelete(url.short_code)}
                       onEdit={(url) => setEditDialog({ open: true, url })}
-                      onQrCode={(url) => setQrDialog({ open: true, url, aliasCode: undefined })}
+                      onQrCode={(url) =>
+                        setQrDialog({ open: true, url, aliasCode: undefined })
+                      }
                       onToggleStar={handleToggleStar}
                       onAliasStats={handleAliasStats}
                     />

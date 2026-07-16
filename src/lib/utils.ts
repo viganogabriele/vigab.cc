@@ -81,4 +81,3 @@ function tagHash(tag: string): number {
 export function getTagColor(tag: string) {
   return TAG_PALETTE[tagHash(tag)]
 }
-

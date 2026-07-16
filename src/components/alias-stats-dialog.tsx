@@ -85,12 +85,13 @@ export function AliasStatsDialog({
   const [data, setData] = useState<AliasStatsResult | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const urlId = url?.id
   useEffect(() => {
-    if (!open || !url) return
+    if (!open || urlId === undefined) return
     let cancelled = false
     setLoading(true)
     setData(null)
-    getAliasStatsDirect(url.id)
+    getAliasStatsDirect(urlId)
       .then((result) => {
         if (cancelled) return
         setData(result)
@@ -104,7 +105,7 @@ export function AliasStatsDialog({
     return () => {
       cancelled = true
     }
-  }, [open, url?.id])
+  }, [open, urlId])
 
   if (!url) return null
 
@@ -113,7 +114,8 @@ export function AliasStatsDialog({
   const primaryLastClicked = data?.urlLastClickedAt
     ? new Date(data.urlLastClickedAt)
     : (url.last_clicked_at ?? null)
-  const aliasClickTotal = data?.aliases.reduce((s, r) => s + r.click_count, 0) ?? 0
+  const aliasClickTotal =
+    data?.aliases.reduce((s, r) => s + r.click_count, 0) ?? 0
   const primaryClicks = Math.max(0, totalClicks - aliasClickTotal)
 
   return (
@@ -121,8 +123,8 @@ export function AliasStatsDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-mono">
-            <GitBranch className="h-4 w-4 shrink-0 text-muted-foreground" />
-            /{url.short_code}
+            <GitBranch className="h-4 w-4 shrink-0 text-muted-foreground" />/
+            {url.short_code}
           </DialogTitle>
           <DialogDescription className="text-xs break-all">
             {makeShortUrl(url)}
@@ -141,7 +143,9 @@ export function AliasStatsDialog({
 
           {/* Per-route breakdown */}
           {loading ? (
-            <p className="text-sm text-muted-foreground text-center py-3">Loading…</p>
+            <p className="text-sm text-muted-foreground text-center py-3">
+              Loading…
+            </p>
           ) : data !== null ? (
             <div className="flex flex-col rounded-md border overflow-hidden divide-y">
               {/* Primary route */}
@@ -160,7 +164,9 @@ export function AliasStatsDialog({
                   label={`/${s.alias_code}`}
                   href={makeAliasUrl(s.alias_code)}
                   clicks={s.click_count}
-                  lastClicked={s.last_clicked_at ? new Date(s.last_clicked_at) : null}
+                  lastClicked={
+                    s.last_clicked_at ? new Date(s.last_clicked_at) : null
+                  }
                   onQr={() => onQrCode(url, s.alias_code)}
                 />
               ))}
@@ -182,9 +188,7 @@ export function AliasStatsDialog({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={() => onManageAliases(url)}>
-            Manage aliases
-          </Button>
+          <Button onClick={() => onManageAliases(url)}>Manage aliases</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -2,10 +2,10 @@
 
 import { getFormProps, getInputProps, useForm } from "@conform-to/react"
 import { getZodConstraint, parseWithZod } from "@conform-to/zod"
+import { X } from "lucide-react"
 import { nanoid } from "nanoid"
 import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -21,8 +21,8 @@ import { env } from "@/env"
 import { createUrl } from "@/lib/actions"
 import { getTagColor } from "@/lib/utils"
 import { createUrlSchema } from "@/lib/validations"
-import { Badge } from "./ui/badge"
 import { RandomText } from "./random-text"
+import { Badge } from "./ui/badge"
 
 interface CreateUrlDialogProps {
   open: boolean
@@ -64,7 +64,10 @@ function TagChipInput({
       <div className="flex gap-2">
         <Input
           value={input}
-          onChange={(e) => { setInput(e.target.value); setError(null) }}
+          onChange={(e) => {
+            setInput(e.target.value)
+            setError(null)
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === ",") {
               e.preventDefault()
@@ -87,7 +90,11 @@ function TagChipInput({
             return (
               <span
                 key={tag}
-                style={{ backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}` }}
+                style={{
+                  backgroundColor: c.bg,
+                  color: c.text,
+                  border: `1px solid ${c.border}`,
+                }}
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
               >
                 {tag}
@@ -120,13 +127,16 @@ export function CreateUrlDialog({
   const [form, fields] = useForm({
     lastResult,
     constraint: getZodConstraint(createUrlSchema),
-    onValidate: ({ formData }) => parseWithZod(formData, { schema: createUrlSchema }),
+    onValidate: ({ formData }) =>
+      parseWithZod(formData, { schema: createUrlSchema }),
     shouldValidate: "onBlur",
     shouldRevalidate: "onInput",
   })
 
   const onSuccessRef = useRef(onSuccess)
-  useEffect(() => { onSuccessRef.current = onSuccess })
+  useEffect(() => {
+    onSuccessRef.current = onSuccess
+  })
 
   const [tags, setTags] = useState<string[]>([])
   const [aliases, setAliases] = useState<string[]>([])
@@ -170,7 +180,8 @@ export function CreateUrlDialog({
         <DialogHeader>
           <DialogTitle>Create Short URL</DialogTitle>
           <DialogDescription>
-            Enter a URL to shorten. Optionally add a custom code, tags, and aliases.
+            Enter a URL to shorten. Optionally add a custom code, tags, and
+            aliases.
           </DialogDescription>
         </DialogHeader>
         <form {...getFormProps(form, {})} action={action}>
@@ -180,7 +191,9 @@ export function CreateUrlDialog({
               {fields.url.errors}
             </span>
             <div className="grid col-span-4 grid-cols-4 items-center gap-4 mb-2">
-              <Label htmlFor={fields.url.id} className="text-right">URL</Label>
+              <Label htmlFor={fields.url.id} className="text-right">
+                URL
+              </Label>
               <Input
                 {...getInputProps(fields.url, { type: "url" })}
                 placeholder="https://example.com/path"
@@ -193,7 +206,9 @@ export function CreateUrlDialog({
               {fields.shortCode.errors?.join(", ")}
             </span>
             <div className="grid col-span-4 grid-cols-4 items-center gap-4 mb-2">
-              <Label htmlFor={fields.shortCode.id} className="text-right">Short Code</Label>
+              <Label htmlFor={fields.shortCode.id} className="text-right">
+                Short Code
+              </Label>
               <Input
                 {...getInputProps(fields.shortCode, { type: "text" })}
                 placeholder="custom-code (optional)"
@@ -218,14 +233,31 @@ export function CreateUrlDialog({
               <div className="flex gap-2">
                 <Input
                   value={aliasInput}
-                  onChange={(e) => { setAliasInput(e.target.value); setAliasError(null) }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAlias() } }}
+                  onChange={(e) => {
+                    setAliasInput(e.target.value)
+                    setAliasError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addAlias()
+                    }
+                  }}
                   placeholder="wiki, wikipedia, word…"
                   className="flex-1"
                 />
-                <Button type="button" variant="outline" size="sm" onClick={addAlias}>Add</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addAlias}
+                >
+                  Add
+                </Button>
               </div>
-              {aliasError && <p className="text-xs text-red-600 mt-1">{aliasError}</p>}
+              {aliasError && (
+                <p className="text-xs text-red-600 mt-1">{aliasError}</p>
+              )}
               {aliases.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
                   {aliases.map((alias) => (
@@ -233,7 +265,9 @@ export function CreateUrlDialog({
                       {alias}
                       <button
                         type="button"
-                        onClick={() => setAliases((p) => p.filter((a) => a !== alias))}
+                        onClick={() =>
+                          setAliases((p) => p.filter((a) => a !== alias))
+                        }
                         className="ml-1 hover:text-destructive"
                         aria-label={`Remove alias ${alias}`}
                       >
@@ -244,7 +278,12 @@ export function CreateUrlDialog({
                 </div>
               )}
               {aliases.map((alias, i) => (
-                <input key={alias} type="hidden" name={`aliases[${i}]`} value={alias} />
+                <input
+                  key={alias}
+                  type="hidden"
+                  name={`aliases[${i}]`}
+                  value={alias}
+                />
               ))}
             </div>
 
@@ -258,7 +297,11 @@ export function CreateUrlDialog({
           <div className="text-sm p-3 border rounded-md border-border mb-4 mt-1 flex flex-col gap-1 bg-muted/50 text-muted-foreground">
             <p className="font-mono mx-auto">
               https://{env.NEXT_PUBLIC_DOMAIN}/
-              {isRandom ? <RandomText generate={randomCode} /> : <span>{fields.shortCode.value}</span>}
+              {isRandom ? (
+                <RandomText generate={randomCode} />
+              ) : (
+                <span>{fields.shortCode.value}</span>
+              )}
             </p>
             {aliases.map((alias) => (
               <p key={alias} className="font-mono mx-auto text-xs opacity-70">
@@ -268,7 +311,12 @@ export function CreateUrlDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={pending}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={pending}>

@@ -14,22 +14,30 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { addAliasDirect, addTag, removeAlias, removeTag, renameShortCodeAction } from "@/lib/actions"
 import { env } from "@/env"
+import {
+  addAliasDirect,
+  addTag,
+  removeAlias,
+  removeTag,
+  renameShortCodeAction,
+} from "@/lib/actions"
 import type { UrlRecord } from "@/lib/schemas"
 import { getTagColor, makeShortUrl } from "@/lib/utils"
 import { Badge } from "./ui/badge"
 
-export type EditDialogState =
-  | { open: false }
-  | { open: true; url: UrlRecord }
+export type EditDialogState = { open: false } | { open: true; url: UrlRecord }
 
 type EditUrlDialogProps = EditDialogState & {
   onClose: () => void
   onSuccess: () => void
 }
 
-export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogProps) {
+export function EditUrlDialog({
+  onClose,
+  onSuccess,
+  ...state
+}: EditUrlDialogProps) {
   const onSuccessRef = useRef(onSuccess)
   useEffect(() => {
     onSuccessRef.current = onSuccess
@@ -59,6 +67,8 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
 
   // ── Reset whenever the dialog opens or a different URL is loaded ────────────
   const urlId = state.open ? state.url.id : 0
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset only when the dialog opens or the URL id changes, not on every field update
   useEffect(() => {
     if (!state.open) return
 
@@ -86,15 +96,20 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
     setAliasError(null)
     setShortCodeError(null)
     setSaving(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.open, urlId])
 
   // ── Tag helpers ─────────────────────────────────────────────────────────────
   const addLocalTag = () => {
     const t = tagInput.trim()
     if (!t) return
-    if (t.length > 50) { setTagError("Max 50 characters"); return }
-    if (localTags.includes(t)) { setTagError("Tag already in list"); return }
+    if (t.length > 50) {
+      setTagError("Max 50 characters")
+      return
+    }
+    if (localTags.includes(t)) {
+      setTagError("Tag already in list")
+      return
+    }
     setLocalTags((prev) => [...prev, t])
     setTagInput("")
     setTagError(null)
@@ -110,7 +125,10 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
       setAliasError("2–25 chars: letters, numbers, hyphens, underscores")
       return
     }
-    if (localAliases.includes(a)) { setAliasError("Already in list"); return }
+    if (localAliases.includes(a)) {
+      setAliasError("Already in list")
+      return
+    }
     setLocalAliases((prev) => [...prev, a])
     setAliasInput("")
     setAliasError(null)
@@ -139,7 +157,10 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
 
     // Preflight format check before any mutations fire
     const trimmedCode = localShortCode.trim()
-    if (trimmedCode !== snapShortCode && !/^[a-zA-Z0-9_-]{2,25}$/.test(trimmedCode)) {
+    if (
+      trimmedCode !== snapShortCode &&
+      !/^[a-zA-Z0-9_-]{2,25}$/.test(trimmedCode)
+    ) {
       setShortCodeError("2–25 chars: letters, numbers, hyphens, underscores")
       return
     }
@@ -179,24 +200,36 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
     const snapTagSet = new Set(snapTags)
     const currTagSet = new Set(localTags)
     for (const t of localTags.filter((x) => !snapTagSet.has(x))) {
-      try { await addTag(state.url.id, t) }
-      catch { errors.push(`Failed to add tag "${t}"`) }
+      try {
+        await addTag(state.url.id, t)
+      } catch {
+        errors.push(`Failed to add tag "${t}"`)
+      }
     }
     for (const t of snapTags.filter((x) => !currTagSet.has(x))) {
-      try { await removeTag(state.url.id, t) }
-      catch { errors.push(`Failed to remove tag "${t}"`) }
+      try {
+        await removeTag(state.url.id, t)
+      } catch {
+        errors.push(`Failed to remove tag "${t}"`)
+      }
     }
 
     // Aliases diff
     const snapAliasSet = new Set(snapAliases)
     const currAliasSet = new Set(localAliases)
     for (const a of localAliases.filter((x) => !snapAliasSet.has(x))) {
-      try { await addAliasDirect(state.url.id, a) }
-      catch (e) { errors.push(e instanceof Error ? e.message : `Failed to add "/${a}"`) }
+      try {
+        await addAliasDirect(state.url.id, a)
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : `Failed to add "/${a}"`)
+      }
     }
     for (const a of snapAliases.filter((x) => !currAliasSet.has(x))) {
-      try { await removeAlias(state.url.id, a) }
-      catch { errors.push(`Failed to remove "/${a}"`) }
+      try {
+        await removeAlias(state.url.id, a)
+      } catch {
+        errors.push(`Failed to remove "/${a}"`)
+      }
     }
 
     // Short code rename — must fire last since other calls used the original code
@@ -209,7 +242,9 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
           renameFailed = true
         }
       } catch (e) {
-        setShortCodeError(e instanceof Error ? e.message : "Failed to rename short code")
+        setShortCodeError(
+          e instanceof Error ? e.message : "Failed to rename short code"
+        )
         renameFailed = true
       }
     }
@@ -235,7 +270,9 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
           {/* ── Header ──────────────────────────────────────────────────── */}
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 min-w-0">
-              <span className="truncate font-mono">/{state.url.short_code}</span>
+              <span className="truncate font-mono">
+                /{state.url.short_code}
+              </span>
               <button
                 type="button"
                 onClick={() => setLocalStarred((v) => !v)}
@@ -248,7 +285,11 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
                   style={
                     localStarred
                       ? { fill: "#facc15", stroke: "#ca8a04" }
-                      : { fill: "transparent", stroke: "currentColor", opacity: 0.4 }
+                      : {
+                          fill: "transparent",
+                          stroke: "currentColor",
+                          opacity: 0.4,
+                        }
                   }
                 />
               </button>
@@ -260,7 +301,6 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
 
           {/* ── Body ────────────────────────────────────────────────────── */}
           <div className="flex flex-col gap-4">
-
             {/* Short code */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="edit-short-code" className="text-sm font-medium">
@@ -306,7 +346,10 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
               <div className="flex gap-2">
                 <Input
                   value={tagInput}
-                  onChange={(e) => { setTagInput(e.target.value); setTagError(null) }}
+                  onChange={(e) => {
+                    setTagInput(e.target.value)
+                    setTagError(null)
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === ",") {
                       e.preventDefault()
@@ -317,11 +360,19 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
                   className="flex-1 min-w-0"
                   maxLength={51}
                 />
-                <Button type="button" variant="outline" size="sm" onClick={addLocalTag} className="shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addLocalTag}
+                  className="shrink-0"
+                >
                   Add
                 </Button>
               </div>
-              {tagError && <p className="text-xs text-destructive">{tagError}</p>}
+              {tagError && (
+                <p className="text-xs text-destructive">{tagError}</p>
+              )}
               {localTags.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {localTags.map((tag) => {
@@ -360,18 +411,32 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
               <div className="flex gap-2">
                 <Input
                   value={aliasInput}
-                  onChange={(e) => { setAliasInput(e.target.value); setAliasError(null) }}
+                  onChange={(e) => {
+                    setAliasInput(e.target.value)
+                    setAliasError(null)
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); addLocalAlias() }
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      addLocalAlias()
+                    }
                   }}
                   placeholder="Add alias short code…"
                   className="flex-1 min-w-0"
                 />
-                <Button type="button" variant="outline" size="sm" onClick={addLocalAlias} className="shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addLocalAlias}
+                  className="shrink-0"
+                >
                   Add
                 </Button>
               </div>
-              {aliasError && <p className="text-xs text-destructive">{aliasError}</p>}
+              {aliasError && (
+                <p className="text-xs text-destructive">{aliasError}</p>
+              )}
               {localAliases.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {localAliases.map((alias) => (
@@ -396,7 +461,12 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
 
           {/* ── Footer ──────────────────────────────────────────────────── */}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={saving}
+            >
               Cancel
             </Button>
             <Button

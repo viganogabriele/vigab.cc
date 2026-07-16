@@ -113,4 +113,3 @@ if (!init && !process.env.SKIP_ENV_VALIDATION) {
       console.error("Error during database initialization:", error)
     })
 }
-

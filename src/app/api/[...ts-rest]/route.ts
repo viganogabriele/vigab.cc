@@ -22,7 +22,10 @@ const handler = createNextHandler(
       } catch (error) {
         return {
           status: 400,
-          body: { error: error instanceof Error ? error.message : "Failed to create URL" },
+          body: {
+            error:
+              error instanceof Error ? error.message : "Failed to create URL",
+          },
         }
       }
     },
@@ -65,7 +68,9 @@ const handler = createNextHandler(
       } catch (error) {
         return {
           status: 400,
-          body: { error: error instanceof Error ? error.message : "Failed to add tag" },
+          body: {
+            error: error instanceof Error ? error.message : "Failed to add tag",
+          },
         }
       }
     },
@@ -83,12 +88,23 @@ const handler = createNextHandler(
       if (!urlRecord) return { status: 404, body: { error: "URL not found" } }
       try {
         await urlService.addAlias(urlRecord.id, body.aliasCode)
-        const aliasRow = await urlService.getAliasRow(urlRecord.id, body.aliasCode)
-        return { status: 201, body: aliasRow! }
+        const aliasRow = await urlService.getAliasRow(
+          urlRecord.id,
+          body.aliasCode
+        )
+        if (!aliasRow)
+          return {
+            status: 500,
+            body: { error: "Alias not found after creation" },
+          }
+        return { status: 201, body: aliasRow }
       } catch (error) {
         return {
           status: 400,
-          body: { error: error instanceof Error ? error.message : "Failed to add alias" },
+          body: {
+            error:
+              error instanceof Error ? error.message : "Failed to add alias",
+          },
         }
       }
     },
@@ -96,7 +112,10 @@ const handler = createNextHandler(
     removeAlias: async ({ params }) => {
       const urlRecord = await urlService.getUrlByShortCode(params.shortCode)
       if (!urlRecord) return { status: 404, body: { error: "URL not found" } }
-      const deleted = await urlService.removeAlias(urlRecord.id, params.aliasCode)
+      const deleted = await urlService.removeAlias(
+        urlRecord.id,
+        params.aliasCode
+      )
       if (!deleted) return { status: 404, body: { error: "Alias not found" } }
       return { status: 204, body: undefined }
     },

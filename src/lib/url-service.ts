@@ -1,6 +1,5 @@
 import { nanoid } from "nanoid"
 import { getPool } from "./db"
-import { shortCodeValidator } from "./validations"
 import {
   AliasStatsResult,
   type AliasStatsResult as AliasStatsResultType,
@@ -10,6 +9,7 @@ import {
   URLRecords,
   type UrlRecord,
 } from "./schemas"
+import { shortCodeValidator } from "./validations"
 
 export class UrlService {
   private pool = getPool()
@@ -83,14 +83,26 @@ export class UrlService {
       tag,
     } = options
 
-    const sb = ["created_at", "updated_at", "click_count", "short_code"].includes(sortBy)
+    const sb = [
+      "created_at",
+      "updated_at",
+      "click_count",
+      "short_code",
+    ].includes(sortBy)
       ? sortBy
       : "created_at"
 
     const offset = (page - 1) * limit
     // $1 = no-search flag, $2 = search pattern,
     // $3 = no-starred flag, $4 = tag filter (null = all), $5 = limit, $6 = offset
-    const params = [!search, `%${search}%`, !customOnly, tag ?? null, limit, offset]
+    const params = [
+      !search,
+      `%${search}%`,
+      !customOnly,
+      tag ?? null,
+      limit,
+      offset,
+    ]
 
     const where = `
       ($1 OR (u.original_url ILIKE $2 OR u.short_code ILIKE $2))
@@ -125,7 +137,10 @@ export class UrlService {
     }
   }
 
-  async updateUrl(shortCode: string, originalUrl: string): Promise<UrlRecord | null> {
+  async updateUrl(
+    shortCode: string,
+    originalUrl: string
+  ): Promise<UrlRecord | null> {
     const result = await this.pool.query(
       `UPDATE urls
        SET original_url = $1, updated_at = CURRENT_TIMESTAMP
@@ -221,10 +236,9 @@ export class UrlService {
 
       // Lock both rows inside the transaction to prevent races
       const [currentRes, oldUrlRes] = await Promise.all([
-        client.query(
-          "SELECT original_url FROM urls WHERE id = $1 FOR UPDATE",
-          [urlId]
-        ),
+        client.query("SELECT original_url FROM urls WHERE id = $1 FOR UPDATE", [
+          urlId,
+        ]),
         client.query(
           "SELECT id, original_url, click_count, last_clicked_at FROM urls WHERE short_code = $1 FOR UPDATE",
           [aliasCode]
@@ -233,7 +247,9 @@ export class UrlService {
 
       if (oldUrlRes.rows.length > 0) {
         // aliasCode exists as a primary short_code — verify destinations match
-        if (currentRes.rows[0]?.original_url !== oldUrlRes.rows[0].original_url) {
+        if (
+          currentRes.rows[0]?.original_url !== oldUrlRes.rows[0].original_url
+        ) {
           throw new Error(
             `"${aliasCode}" is already used as a short code pointing to a different URL.`
           )
@@ -248,7 +264,8 @@ export class UrlService {
           "SELECT 1 FROM url_aliases WHERE alias_code = $1",
           [aliasCode]
         )
-        if (inAliases.rows.length > 0) throw new Error(`Alias "${aliasCode}" already exists.`)
+        if (inAliases.rows.length > 0)
+          throw new Error(`Alias "${aliasCode}" already exists.`)
 
         // Compute direct clicks for the old primary code:
         // total clicks minus clicks already attributed to its aliases
@@ -298,7 +315,8 @@ export class UrlService {
           "SELECT 1 FROM url_aliases WHERE alias_code = $1",
           [aliasCode]
         )
-        if (inAliases.rows.length > 0) throw new Error(`Alias "${aliasCode}" already exists.`)
+        if (inAliases.rows.length > 0)
+          throw new Error(`Alias "${aliasCode}" already exists.`)
 
         await client.query(
           "INSERT INTO url_aliases (url_id, alias_code) VALUES ($1, $2)",
@@ -391,7 +409,12 @@ export class UrlService {
   async getAliasRow(
     urlId: number,
     aliasCode: string
-  ): Promise<{ id: number; url_id: number; alias_code: string; created_at: Date } | null> {
+  ): Promise<{
+    id: number
+    url_id: number
+    alias_code: string
+    created_at: Date
+  } | null> {
     const result = await this.pool.query(
       "SELECT * FROM url_aliases WHERE url_id = $1 AND alias_code = $2",
       [urlId, aliasCode]
@@ -428,7 +451,9 @@ export class UrlService {
     return URLRecord.parse(this.normaliseRow(row))
   }
 
-  private async attachMetadata(row: Record<string, unknown>): Promise<UrlRecord> {
+  private async attachMetadata(
+    row: Record<string, unknown>
+  ): Promise<UrlRecord> {
     const id = row.id as number
     const [tags, aliases] = await Promise.all([
       this.getTagsForUrl(id),
