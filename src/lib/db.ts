@@ -88,6 +88,13 @@ async function migrateDatabase() {
   } catch (error) {
     console.error("Error running database migrations:", error)
   }
+
+  // Per-alias click tracking and last-click timestamps — required for alias stats feature
+  await pool.query(`
+    ALTER TABLE url_aliases ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0 NOT NULL;
+    ALTER TABLE urls ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+    ALTER TABLE url_aliases ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+  `)
 }
 
 let init = false
@@ -106,4 +113,3 @@ if (!init && !process.env.SKIP_ENV_VALIDATION) {
       console.error("Error during database initialization:", error)
     })
 }
-

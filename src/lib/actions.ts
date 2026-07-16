@@ -2,8 +2,9 @@
 
 import type { SubmissionResult } from "@conform-to/react"
 import { parseWithZod } from "@conform-to/zod"
+import { z } from "zod"
 import { urlService } from "./url-service"
-import { aliasSchema, createUrlSchema, tagSchema } from "./validations"
+import { aliasSchema, createUrlSchema, shortCodeValidator } from "./validations"
 
 export async function createUrl(
   prevState: {
@@ -13,7 +14,10 @@ export async function createUrl(
   formData: FormData
 ) {
   const submission = parseWithZod(formData, { schema: createUrlSchema })
-  const result: typeof prevState = { ...prevState, lastResult: submission.reply() }
+  const result: typeof prevState = {
+    ...prevState,
+    lastResult: submission.reply(),
+  }
 
   // Extract array fields submitted as field[0], field[1], …
   const extractArray = (prefix: string) => {
@@ -36,7 +40,8 @@ export async function createUrl(
       )
       result.error = null
     } catch (error) {
-      result.error = error instanceof Error ? error.message : "Failed to create URL"
+      result.error =
+        error instanceof Error ? error.message : "Failed to create URL"
     }
   }
   return result
@@ -58,7 +63,10 @@ export async function addAlias(
   formData: FormData
 ) {
   const submission = parseWithZod(formData, { schema: aliasSchema })
-  const result: typeof prevState = { ...prevState, lastResult: submission.reply() }
+  const result: typeof prevState = {
+    ...prevState,
+    lastResult: submission.reply(),
+  }
   const urlId = Number(formData.get("urlId"))
 
   if (submission.status === "success" && urlId) {
@@ -66,7 +74,8 @@ export async function addAlias(
       await urlService.addAlias(urlId, submission.value.aliasCode)
       result.error = null
     } catch (error) {
-      result.error = error instanceof Error ? error.message : "Failed to add alias"
+      result.error =
+        error instanceof Error ? error.message : "Failed to add alias"
     }
   }
   return result
@@ -80,3 +89,13 @@ export async function addAliasDirect(urlId: number, aliasCode: string) {
   await urlService.addAlias(urlId, aliasCode)
 }
 
+export async function getAliasStatsDirect(urlId: number) {
+  const id = z.number().int().positive().parse(urlId)
+  return urlService.getAliasStats(id)
+}
+
+export async function renameShortCodeAction(oldCode: string, newCode: string) {
+  shortCodeValidator.parse(oldCode)
+  shortCodeValidator.parse(newCode)
+  return urlService.renameShortCode(oldCode, newCode)
+}

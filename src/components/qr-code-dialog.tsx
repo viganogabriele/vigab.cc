@@ -1,7 +1,7 @@
 "use client"
 
 import { Download } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   getDefaultQrOptions,
   QR_OPTIONS,
@@ -9,7 +9,7 @@ import {
   type QrOptions,
 } from "@/lib/qr-config"
 import type { UrlRecord } from "@/lib/schemas"
-import { makeShortUrl } from "@/lib/utils"
+import { makeAliasUrl, makeShortUrl } from "@/lib/utils"
 import { QrCode } from "./qr-code"
 import { Button } from "./ui/button"
 import {
@@ -25,12 +25,25 @@ import { Tabs, TabsList, TabsTrigger } from "./ui/tabs"
 export interface QrCodeDialogProps {
   open: boolean
   url?: UrlRecord
+  aliasCode?: string
   onOpenChange: (open: boolean) => void
 }
 
-export function QrCodeDialog({ open, url, onOpenChange }: QrCodeDialogProps) {
+export function QrCodeDialog({
+  open,
+  url,
+  aliasCode,
+  onOpenChange,
+}: QrCodeDialogProps) {
   const [options, setOptions] = useState<QrOptions>(getDefaultQrOptions())
   const [imageData, setImageData] = useState<Blob | null>(null)
+
+  const shortCode = url?.short_code
+  // biome-ignore lint/correctness/useExhaustiveDependencies: aliasCode and shortCode are trigger deps — not read in the body but used to clear stale image when the target URL changes
+  useEffect(() => {
+    setImageData(null)
+  }, [aliasCode, shortCode])
+
   const downloadUrl = useMemo(() => {
     if (imageData) {
       return URL.createObjectURL(imageData)
@@ -49,7 +62,8 @@ export function QrCodeDialog({ open, url, onOpenChange }: QrCodeDialogProps) {
   }
 
   if (!url) return null
-  const shortUrl = makeShortUrl(url)
+  const targetCode = aliasCode ?? url.short_code
+  const shortUrl = aliasCode ? makeAliasUrl(aliasCode) : makeShortUrl(url)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -61,6 +75,9 @@ export function QrCodeDialog({ open, url, onOpenChange }: QrCodeDialogProps) {
             <span className="font-mono text-foreground whitespace-nowrap">
               {shortUrl}
             </span>
+            {aliasCode && (
+              <span className="ml-1 text-muted-foreground">(alias)</span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,9 +144,7 @@ export function QrCodeDialog({ open, url, onOpenChange }: QrCodeDialogProps) {
         <DialogFooter>
           <a
             href={downloadUrl ?? undefined}
-            download={
-              downloadUrl ? `polinet-qr-${url.short_code}.png` : undefined
-            }
+            download={downloadUrl ? `polinet-qr-${targetCode}.png` : undefined}
           >
             <Button className="w-full" disabled={!downloadUrl}>
               <Download className="h-4 w-4" />

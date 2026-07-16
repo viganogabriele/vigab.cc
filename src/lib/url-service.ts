@@ -1,12 +1,15 @@
 import { nanoid } from "nanoid"
 import { getPool } from "./db"
 import {
+  AliasStatsResult,
+  type AliasStatsResult as AliasStatsResultType,
   type GetUrlsQueryParams,
   type PaginatedUrlsResponse,
   URLRecord,
   URLRecords,
   type UrlRecord,
 } from "./schemas"
+import { shortCodeValidator } from "./validations"
 
 export class UrlService {
   private pool = getPool()
@@ -80,14 +83,26 @@ export class UrlService {
       tag,
     } = options
 
-    const sb = ["created_at", "updated_at", "click_count", "short_code"].includes(sortBy)
+    const sb = [
+      "created_at",
+      "updated_at",
+      "click_count",
+      "short_code",
+    ].includes(sortBy)
       ? sortBy
       : "created_at"
 
     const offset = (page - 1) * limit
     // $1 = no-search flag, $2 = search pattern,
     // $3 = no-starred flag, $4 = tag filter (null = all), $5 = limit, $6 = offset
-    const params = [!search, `%${search}%`, !customOnly, tag ?? null, limit, offset]
+    const params = [
+      !search,
+      `%${search}%`,
+      !customOnly,
+      tag ?? null,
+      limit,
+      offset,
+    ]
 
     const where = `
       ($1 OR (u.original_url ILIKE $2 OR u.short_code ILIKE $2))
@@ -122,7 +137,10 @@ export class UrlService {
     }
   }
 
-  async updateUrl(shortCode: string, originalUrl: string): Promise<UrlRecord | null> {
+  async updateUrl(
+    shortCode: string,
+    originalUrl: string
+  ): Promise<UrlRecord | null> {
     const result = await this.pool.query(
       `UPDATE urls
        SET original_url = $1, updated_at = CURRENT_TIMESTAMP
@@ -161,11 +179,17 @@ export class UrlService {
   }
 
   async incrementClickCount(shortCode: string): Promise<void> {
+    // Single atomic statement: CTE updates urls and url_aliases together
     await this.pool.query(
-      `UPDATE urls
-       SET click_count = click_count + 1
-       WHERE short_code = $1
-          OR id = (SELECT url_id FROM url_aliases WHERE alias_code = $1 LIMIT 1)`,
+      `WITH _url AS (
+         UPDATE urls
+         SET click_count = click_count + 1, last_clicked_at = CURRENT_TIMESTAMP
+         WHERE short_code = $1
+            OR id = (SELECT url_id FROM url_aliases WHERE alias_code = $1 LIMIT 1)
+       )
+       UPDATE url_aliases
+       SET click_count = click_count + 1, last_clicked_at = CURRENT_TIMESTAMP
+       WHERE alias_code = $1`,
       [shortCode]
     )
   }
@@ -206,24 +230,107 @@ export class UrlService {
   // ── Alias methods ──────────────────────────────────────────────────────────
 
   async addAlias(urlId: number, aliasCode: string): Promise<void> {
-    const inUrls = await this.pool.query(
-      "SELECT 1 FROM urls WHERE short_code = $1",
-      [aliasCode]
-    )
-    if (inUrls.rows.length > 0) {
-      throw new Error(`"${aliasCode}" is already used as a primary short code.`)
+    const client = await this.pool.connect()
+    try {
+      await client.query("BEGIN")
+
+      // Lock both rows inside the transaction to prevent races
+      const [currentRes, oldUrlRes] = await Promise.all([
+        client.query("SELECT original_url FROM urls WHERE id = $1 FOR UPDATE", [
+          urlId,
+        ]),
+        client.query(
+          "SELECT id, original_url, click_count, last_clicked_at FROM urls WHERE short_code = $1 FOR UPDATE",
+          [aliasCode]
+        ),
+      ])
+
+      if (oldUrlRes.rows.length > 0) {
+        // aliasCode exists as a primary short_code — verify destinations match
+        if (
+          currentRes.rows[0]?.original_url !== oldUrlRes.rows[0].original_url
+        ) {
+          throw new Error(
+            `"${aliasCode}" is already used as a short code pointing to a different URL.`
+          )
+        }
+
+        const oldUrlId: number = oldUrlRes.rows[0].id
+        const oldClickCount: number = oldUrlRes.rows[0].click_count
+        const oldLastClickedAt: Date | null = oldUrlRes.rows[0].last_clicked_at
+
+        // Guard against duplicate alias entry
+        const inAliases = await client.query(
+          "SELECT 1 FROM url_aliases WHERE alias_code = $1",
+          [aliasCode]
+        )
+        if (inAliases.rows.length > 0)
+          throw new Error(`Alias "${aliasCode}" already exists.`)
+
+        // Compute direct clicks for the old primary code:
+        // total clicks minus clicks already attributed to its aliases
+        const aliasSumRes = await client.query(
+          "SELECT COALESCE(SUM(click_count), 0) AS total FROM url_aliases WHERE url_id = $1",
+          [oldUrlId]
+        )
+        const directClicks = Math.max(
+          0,
+          oldClickCount - Number(aliasSumRes.rows[0].total)
+        )
+
+        // Re-parent old URL's aliases to current URL
+        await client.query(
+          "UPDATE url_aliases SET url_id = $1 WHERE url_id = $2",
+          [urlId, oldUrlId]
+        )
+
+        // Transfer tags (ignore duplicates)
+        await client.query(
+          `INSERT INTO url_tags (url_id, tag_name)
+           SELECT $1, tag_name FROM url_tags WHERE url_id = $2
+           ON CONFLICT DO NOTHING`,
+          [urlId, oldUrlId]
+        )
+
+        // Merge click count and keep the more recent last_clicked_at
+        await client.query(
+          `UPDATE urls
+           SET click_count = click_count + $1,
+               last_clicked_at = GREATEST(last_clicked_at, $2)
+           WHERE id = $3`,
+          [oldClickCount, oldLastClickedAt, urlId]
+        )
+
+        // Delete the old URL row (url_tags cascade; aliases already re-parented)
+        await client.query("DELETE FROM urls WHERE id = $1", [oldUrlId])
+
+        // Insert the alias seeded with the direct click history of the old primary code
+        await client.query(
+          "INSERT INTO url_aliases (url_id, alias_code, click_count, last_clicked_at) VALUES ($1, $2, $3, $4)",
+          [urlId, aliasCode, directClicks, oldLastClickedAt]
+        )
+      } else {
+        // Normal alias creation — aliasCode not in use as a primary short_code
+        const inAliases = await client.query(
+          "SELECT 1 FROM url_aliases WHERE alias_code = $1",
+          [aliasCode]
+        )
+        if (inAliases.rows.length > 0)
+          throw new Error(`Alias "${aliasCode}" already exists.`)
+
+        await client.query(
+          "INSERT INTO url_aliases (url_id, alias_code) VALUES ($1, $2)",
+          [urlId, aliasCode]
+        )
+      }
+
+      await client.query("COMMIT")
+    } catch (e) {
+      await client.query("ROLLBACK")
+      throw e
+    } finally {
+      client.release()
     }
-    const inAliases = await this.pool.query(
-      "SELECT 1 FROM url_aliases WHERE alias_code = $1",
-      [aliasCode]
-    )
-    if (inAliases.rows.length > 0) {
-      throw new Error(`Alias "${aliasCode}" already exists.`)
-    }
-    await this.pool.query(
-      "INSERT INTO url_aliases (url_id, alias_code) VALUES ($1, $2)",
-      [urlId, aliasCode]
-    )
   }
 
   async removeAlias(urlId: number, aliasCode: string): Promise<boolean> {
@@ -242,10 +349,72 @@ export class UrlService {
     return result.rows.map((r: { alias_code: string }) => r.alias_code)
   }
 
+  async getAliasStats(urlId: number): Promise<AliasStatsResultType> {
+    const [urlRes, aliasRes] = await Promise.all([
+      this.pool.query(
+        "SELECT click_count, last_clicked_at FROM urls WHERE id = $1",
+        [urlId]
+      ),
+      this.pool.query(
+        "SELECT alias_code, click_count, last_clicked_at, created_at FROM url_aliases WHERE url_id = $1 ORDER BY created_at",
+        [urlId]
+      ),
+    ])
+    return AliasStatsResult.parse({
+      urlClickCount: urlRes.rows[0]?.click_count ?? 0,
+      urlLastClickedAt: urlRes.rows[0]?.last_clicked_at ?? null,
+      aliases: aliasRes.rows,
+    })
+  }
+
+  async renameShortCode(
+    oldCode: string,
+    newCode: string
+  ): Promise<UrlRecord | null> {
+    shortCodeValidator.parse(newCode)
+    if (newCode === oldCode) return this.getUrlByShortCode(oldCode)
+    const inUrls = await this.pool.query(
+      "SELECT 1 FROM urls WHERE short_code = $1",
+      [newCode]
+    )
+    if (inUrls.rows.length > 0) {
+      throw new Error(`"${newCode}" is already used as a short code.`)
+    }
+    const inAliases = await this.pool.query(
+      "SELECT url_id FROM url_aliases WHERE alias_code = $1",
+      [newCode]
+    )
+    if (inAliases.rows.length > 0) {
+      const isOwnAlias =
+        inAliases.rows[0].url_id ===
+        (
+          await this.pool.query("SELECT id FROM urls WHERE short_code = $1", [
+            oldCode,
+          ])
+        ).rows[0]?.id
+      throw new Error(
+        isOwnAlias
+          ? `"${newCode}" is already one of this URL's aliases. Remove it first, then rename.`
+          : `"${newCode}" is already used as an alias.`
+      )
+    }
+    const result = await this.pool.query(
+      "UPDATE urls SET short_code = $1, updated_at = CURRENT_TIMESTAMP WHERE short_code = $2 RETURNING *",
+      [newCode, oldCode]
+    )
+    if (!result.rows[0]) return null
+    return this.attachMetadata(result.rows[0])
+  }
+
   async getAliasRow(
     urlId: number,
     aliasCode: string
-  ): Promise<{ id: number; url_id: number; alias_code: string; created_at: Date } | null> {
+  ): Promise<{
+    id: number
+    url_id: number
+    alias_code: string
+    created_at: Date
+  } | null> {
     const result = await this.pool.query(
       "SELECT * FROM url_aliases WHERE url_id = $1 AND alias_code = $2",
       [urlId, aliasCode]
@@ -274,6 +443,7 @@ export class UrlService {
       ...row,
       tags: row.tags ?? [],
       aliases: row.aliases ?? [],
+      last_clicked_at: row.last_clicked_at ?? null,
     }
   }
 
@@ -281,7 +451,9 @@ export class UrlService {
     return URLRecord.parse(this.normaliseRow(row))
   }
 
-  private async attachMetadata(row: Record<string, unknown>): Promise<UrlRecord> {
+  private async attachMetadata(
+    row: Record<string, unknown>
+  ): Promise<UrlRecord> {
     const id = row.id as number
     const [tags, aliases] = await Promise.all([
       this.getTagsForUrl(id),

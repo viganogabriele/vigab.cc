@@ -33,7 +33,6 @@ export function QrCode({
     if (primary) {
       setThemeColor(primary)
     }
-    // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   }, [])
 
   const { style, background } = options

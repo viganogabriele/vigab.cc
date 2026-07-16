@@ -1,7 +1,15 @@
 "use client"
 
 import { SiGithub as Github } from "@icons-pack/react-simple-icons"
-import { FileCodeCorner, LogOut, Plus, Search, Star, Tag, X } from "lucide-react"
+import {
+  FileCodeCorner,
+  LogOut,
+  Plus,
+  Search,
+  Star,
+  Tag,
+  X,
+} from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { signOut } from "next-auth/react"
@@ -36,6 +44,7 @@ import { env } from "@/env"
 import { useAllTags, useUrls } from "@/hooks/urls"
 import type { UrlRecord, UrlsQueryParams } from "@/lib/schemas"
 import { copyToClipboard, getTagColor, makeShortUrl } from "@/lib/utils"
+import { AliasStatsDialog } from "./alias-stats-dialog"
 import { CreateUrlDialog } from "./create-url-dialog"
 import { type EditDialogState, EditUrlDialog } from "./edit-url-dialog"
 import { PaginationControls } from "./pagination"
@@ -64,9 +73,14 @@ export function Dashboard() {
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ open: false })
+  const [aliasStatsDialog, setAliasStatsDialog] = useState<{
+    open: boolean
+    url?: UrlRecord
+  }>({ open: false })
   const [qrDialog, setQrDialog] = useState<{
     open: boolean
     url?: UrlRecord
+    aliasCode?: string
   }>({ open: false })
 
   const handleStarredToggle = () => {
@@ -123,6 +137,10 @@ export function Dashboard() {
       toast.error("Failed to delete URL")
     }
   }
+
+  const handleAliasStats = useCallback((url: UrlRecord) => {
+    setAliasStatsDialog({ open: true, url })
+  }, [])
 
   const handleToggleStar = useCallback(
     async (url: UrlRecord) => {
@@ -248,7 +266,25 @@ export function Dashboard() {
                   >
                     <SelectTrigger className="w-[160px] flex items-center gap-2">
                       <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <SelectValue placeholder="All tags" />
+                      {activeTag ? (
+                        (() => {
+                          const c = getTagColor(activeTag)
+                          return (
+                            <span
+                              style={{
+                                backgroundColor: c.bg,
+                                color: c.text,
+                                border: `1px solid ${c.border}`,
+                              }}
+                              className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium truncate"
+                            >
+                              {activeTag}
+                            </span>
+                          )
+                        })()
+                      ) : (
+                        <SelectValue placeholder="All tags" />
+                      )}
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all__">All tags</SelectItem>
@@ -313,8 +349,11 @@ export function Dashboard() {
                     onCopy={(url) => copyToClipboard(makeShortUrl(url))}
                     onDelete={(url) => handleDelete(url.short_code)}
                     onEdit={(url) => setEditDialog({ open: true, url })}
-                    onQrCode={(url) => setQrDialog({ open: true, url })}
+                    onQrCode={(url) =>
+                      setQrDialog({ open: true, url, aliasCode: undefined })
+                    }
                     onToggleStar={handleToggleStar}
+                    onAliasStats={handleAliasStats}
                   />
                 ))}
               </div>
@@ -339,8 +378,11 @@ export function Dashboard() {
                       onCopy={(url) => copyToClipboard(makeShortUrl(url))}
                       onDelete={(url) => handleDelete(url.short_code)}
                       onEdit={(url) => setEditDialog({ open: true, url })}
-                      onQrCode={(url) => setQrDialog({ open: true, url })}
+                      onQrCode={(url) =>
+                        setQrDialog({ open: true, url, aliasCode: undefined })
+                      }
                       onToggleStar={handleToggleStar}
+                      onAliasStats={handleAliasStats}
                     />
                   ))}
                 </TableBody>
@@ -379,10 +421,31 @@ export function Dashboard() {
         }}
       />
 
+      <AliasStatsDialog
+        open={aliasStatsDialog.open}
+        url={aliasStatsDialog.url}
+        onClose={() => setAliasStatsDialog({ open: false })}
+        onManageAliases={(url) => {
+          setAliasStatsDialog({ open: false })
+          setEditDialog({ open: true, url })
+        }}
+        onQrCode={(url, aliasCode) => {
+          setAliasStatsDialog({ open: false })
+          setQrDialog({ open: true, url, aliasCode })
+        }}
+      />
+
       <QrCodeDialog
         open={qrDialog.open}
         url={qrDialog.url}
-        onOpenChange={(open) => setQrDialog((prev) => ({ ...prev, open }))}
+        aliasCode={qrDialog.aliasCode}
+        onOpenChange={(open) =>
+          setQrDialog((prev) => ({
+            ...prev,
+            open,
+            aliasCode: open ? prev.aliasCode : undefined,
+          }))
+        }
       />
     </div>
   )
