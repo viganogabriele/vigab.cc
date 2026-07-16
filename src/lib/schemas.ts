@@ -23,10 +23,25 @@ export const AliasRecord = z.object({
 })
 export const AliasRecords = z.array(AliasRecord)
 
+export const AliasStatsRow = z.object({
+  alias_code: z.string().max(25),
+  click_count: z.number().int().nonnegative(),
+  last_clicked_at: z.coerce.date().nullable(),
+  created_at: z.coerce.date(),
+})
+
+export const AliasStatsResult = z.object({
+  urlClickCount: z.number().int().nonnegative(),
+  urlLastClickedAt: z.coerce.date().nullable(),
+  aliases: z.array(AliasStatsRow),
+})
+
 export type UrlRecord = z.infer<typeof URLRecord>
 export type UrlRecords = z.infer<typeof URLRecords>
 export type AliasRecord = z.infer<typeof AliasRecord>
 export type AliasRecords = z.infer<typeof AliasRecords>
+export type AliasStatsRow = z.infer<typeof AliasStatsRow>
+export type AliasStatsResult = z.infer<typeof AliasStatsResult>
 
 export const PaginatedUrlsResponse = z.object({
   urls: z.array(URLRecord),

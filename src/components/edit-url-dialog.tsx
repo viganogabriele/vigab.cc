@@ -137,6 +137,13 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
       return
     }
 
+    // Preflight format check before any mutations fire
+    const trimmedCode = localShortCode.trim()
+    if (trimmedCode !== snapShortCode && !/^[a-zA-Z0-9_-]{2,25}$/.test(trimmedCode)) {
+      setShortCodeError("2–25 chars: letters, numbers, hyphens, underscores")
+      return
+    }
+
     setSaving(true)
     const errors: string[] = []
 
@@ -193,30 +200,32 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
     }
 
     // Short code rename — must fire last since other calls used the original code
-    const trimmedCode = localShortCode.trim()
+    let renameFailed = false
     if (trimmedCode !== snapShortCode) {
-      if (!/^[a-zA-Z0-9_-]{2,25}$/.test(trimmedCode)) {
-        errors.push("Short code must be 2–25 chars: letters, numbers, hyphens, underscores")
-      } else {
-        try {
-          const result = await renameShortCodeAction(snapShortCode, trimmedCode)
-          if (!result) errors.push("Short code not found — rename failed")
-        } catch (e) {
-          errors.push(e instanceof Error ? e.message : "Failed to rename short code")
+      try {
+        const result = await renameShortCodeAction(snapShortCode, trimmedCode)
+        if (!result) {
+          setShortCodeError("Short code not found — rename failed")
+          renameFailed = true
         }
+      } catch (e) {
+        setShortCodeError(e instanceof Error ? e.message : "Failed to rename short code")
+        renameFailed = true
       }
     }
 
     setSaving(false)
+    onSuccessRef.current()
 
     if (errors.length > 0) {
       toast.error(errors.join("\n"))
-    } else {
-      toast.success("Changes saved!")
     }
 
-    onSuccessRef.current()
-    onClose()
+    if (!renameFailed) {
+      if (errors.length === 0) toast.success("Changes saved!")
+      onClose()
+    }
+    // Rename failed: keep dialog open so user sees the inline error
   }
 
   return (

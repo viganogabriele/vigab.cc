@@ -4,7 +4,7 @@ import { GitBranch, Pointer, QrCode } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { getAliasStatsDirect } from "@/lib/actions"
-import type { UrlRecord } from "@/lib/schemas"
+import type { AliasStatsResult, UrlRecord } from "@/lib/schemas"
 import { makeAliasUrl, makeShortUrl, relativeTime } from "@/lib/utils"
 import { Button } from "./ui/button"
 import {
@@ -16,13 +16,6 @@ import {
   DialogTitle,
 } from "./ui/dialog"
 
-type AliasStats = {
-  alias_code: string
-  click_count: number
-  last_clicked_at: Date | null
-  created_at: Date
-}
-
 interface AliasStatsDialogProps {
   open: boolean
   url?: UrlRecord
@@ -30,7 +23,6 @@ interface AliasStatsDialogProps {
   onManageAliases: (url: UrlRecord) => void
   onQrCode: (url: UrlRecord, aliasCode: string) => void
 }
-
 
 function ClickRow({
   label,
@@ -66,18 +58,19 @@ function ClickRow({
         <Pointer className="h-3 w-3 text-muted-foreground" />
         {clicks}
       </span>
-      {!isPrimary && (
+      {!isPrimary ? (
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-7 w-7 shrink-0 transition-opacity opacity-40 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
           onClick={onQr}
           title={`QR code for ${label}`}
         >
           <QrCode className="h-4 w-4" />
         </Button>
+      ) : (
+        <div className="h-7 w-7 shrink-0" />
       )}
-      {isPrimary && <div className="h-7 w-7 shrink-0" />}
     </div>
   )
 }
@@ -89,31 +82,39 @@ export function AliasStatsDialog({
   onManageAliases,
   onQrCode,
 }: AliasStatsDialogProps) {
-  const [stats, setStats] = useState<AliasStats[] | null>(null)
+  const [data, setData] = useState<AliasStatsResult | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!open || !url) return
+    let cancelled = false
     setLoading(true)
-    setStats(null)
+    setData(null)
     getAliasStatsDirect(url.id)
-      .then((rows) =>
-        setStats(
-          rows.map((r) => ({
-            ...r,
-            last_clicked_at: r.last_clicked_at ? new Date(r.last_clicked_at) : null,
-            created_at: new Date(r.created_at),
-          }))
-        )
-      )
-      .catch(() => toast.error("Failed to load alias stats"))
-      .finally(() => setLoading(false))
+      .then((result) => {
+        if (cancelled) return
+        setData(result)
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Failed to load alias stats")
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [open, url?.id])
 
   if (!url) return null
 
-  const aliasClickTotal = stats?.reduce((s, r) => s + r.click_count, 0) ?? 0
-  const primaryClicks = url.click_count - aliasClickTotal
+  // Use server snapshot for consistency; fall back to cached url prop while loading
+  const totalClicks = data?.urlClickCount ?? url.click_count
+  const primaryLastClicked = data?.urlLastClickedAt
+    ? new Date(data.urlLastClickedAt)
+    : (url.last_clicked_at ?? null)
+  const aliasClickTotal = data?.aliases.reduce((s, r) => s + r.click_count, 0) ?? 0
+  const primaryClicks = Math.max(0, totalClicks - aliasClickTotal)
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -134,36 +135,36 @@ export function AliasStatsDialog({
             <span className="text-sm text-muted-foreground">Total clicks</span>
             <span className="flex items-center gap-1.5 text-xl font-semibold tabular-nums">
               <Pointer className="h-4 w-4 text-muted-foreground" />
-              {url.click_count}
+              {totalClicks}
             </span>
           </div>
 
           {/* Per-route breakdown */}
           {loading ? (
             <p className="text-sm text-muted-foreground text-center py-3">Loading…</p>
-          ) : stats !== null ? (
+          ) : data !== null ? (
             <div className="flex flex-col rounded-md border overflow-hidden divide-y">
               {/* Primary route */}
               <ClickRow
                 label={`/${url.short_code}`}
                 href={makeShortUrl(url)}
-                clicks={primaryClicks >= 0 ? primaryClicks : 0}
-                lastClicked={url.last_clicked_at}
+                clicks={primaryClicks}
+                lastClicked={primaryLastClicked}
                 onQr={() => {}}
                 isPrimary
               />
               {/* Alias rows */}
-              {stats.map((s) => (
+              {data.aliases.map((s) => (
                 <ClickRow
                   key={s.alias_code}
                   label={`/${s.alias_code}`}
                   href={makeAliasUrl(s.alias_code)}
                   clicks={s.click_count}
-                  lastClicked={s.last_clicked_at}
+                  lastClicked={s.last_clicked_at ? new Date(s.last_clicked_at) : null}
                   onQr={() => onQrCode(url, s.alias_code)}
                 />
               ))}
-              {stats.length === 0 && (
+              {data.aliases.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-3">
                   No aliases
                 </p>

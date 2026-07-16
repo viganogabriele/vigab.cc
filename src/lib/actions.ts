@@ -2,8 +2,9 @@
 
 import type { SubmissionResult } from "@conform-to/react"
 import { parseWithZod } from "@conform-to/zod"
+import { z } from "zod"
 import { urlService } from "./url-service"
-import { aliasSchema, createUrlSchema, tagSchema } from "./validations"
+import { aliasSchema, createUrlSchema, shortCodeValidator, tagSchema } from "./validations"
 
 export async function createUrl(
   prevState: {
@@ -81,10 +82,13 @@ export async function addAliasDirect(urlId: number, aliasCode: string) {
 }
 
 export async function getAliasStatsDirect(urlId: number) {
-  return urlService.getAliasStats(urlId)
+  const id = z.number().int().positive().parse(urlId)
+  return urlService.getAliasStats(id)
 }
 
 export async function renameShortCodeAction(oldCode: string, newCode: string) {
+  shortCodeValidator.parse(oldCode)
+  shortCodeValidator.parse(newCode)
   return urlService.renameShortCode(oldCode, newCode)
 }
 

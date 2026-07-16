@@ -89,24 +89,12 @@ async function migrateDatabase() {
     console.error("Error running database migrations:", error)
   }
 
-  try {
-    // Per-alias click tracking
-    await pool.query(`
-      ALTER TABLE url_aliases ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0 NOT NULL;
-    `)
-  } catch (error) {
-    console.error("Error running alias click_count migration:", error)
-  }
-
-  try {
-    // Last-click timestamps for both tables
-    await pool.query(`
-      ALTER TABLE urls ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
-      ALTER TABLE url_aliases ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
-    `)
-  } catch (error) {
-    console.error("Error running last_clicked_at migration:", error)
-  }
+  // Per-alias click tracking and last-click timestamps — required for alias stats feature
+  await pool.query(`
+    ALTER TABLE url_aliases ADD COLUMN IF NOT EXISTS click_count INTEGER DEFAULT 0 NOT NULL;
+    ALTER TABLE urls ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+    ALTER TABLE url_aliases ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+  `)
 }
 
 let init = false

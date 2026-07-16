@@ -100,8 +100,13 @@ export function MobileRow({
         {url.aliases && url.aliases.length > 0 && (
           <Badge
             variant="outline"
+            role="button"
+            tabIndex={0}
             className="text-xs gap-1 cursor-pointer hover:bg-accent transition-colors"
             onClick={() => onAliasStats(url)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAliasStats(url) }
+            }}
             title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
           >
             <GitBranch className="h-3 w-3" />
@@ -184,8 +189,13 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
           {url.aliases && url.aliases.length > 0 && (
             <Badge
               variant="outline"
+              role="button"
+              tabIndex={0}
               className="text-xs gap-1 cursor-pointer hover:bg-accent transition-colors"
               onClick={() => props.onAliasStats(url)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); props.onAliasStats(url) }
+              }}
               title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
             >
               <GitBranch className="h-3 w-3" />
