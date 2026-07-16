@@ -80,3 +80,11 @@ export async function addAliasDirect(urlId: number, aliasCode: string) {
   await urlService.addAlias(urlId, aliasCode)
 }
 
+export async function getAliasStatsDirect(urlId: number) {
+  return urlService.getAliasStats(urlId)
+}
+
+export async function renameShortCodeAction(oldCode: string, newCode: string) {
+  return urlService.renameShortCode(oldCode, newCode)
+}
+

@@ -9,10 +9,11 @@ import {
   Trash2,
 } from "lucide-react"
 import type { UrlRecord } from "@/lib/schemas"
-import { copyToClipboard, getTagColor, makeShortUrl } from "@/lib/utils"
+import { copyToClipboard, getTagColor, makeShortUrl, relativeTime } from "@/lib/utils"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { TableCell, TableRow } from "./ui/table"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
 
 export type UrlRecordRowProps = {
   url: UrlRecord
@@ -21,6 +22,7 @@ export type UrlRecordRowProps = {
   onEdit: (url: UrlRecord) => void
   onQrCode: (url: UrlRecord) => void
   onToggleStar: (url: UrlRecord) => void
+  onAliasStats: (url: UrlRecord) => void
 }
 
 function TagBadges({ tags }: { tags: string[] }) {
@@ -30,13 +32,21 @@ function TagBadges({ tags }: { tags: string[] }) {
       {tags.map((tag) => {
         const c = getTagColor(tag)
         return (
-          <span
-            key={tag}
-            style={{ backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}` }}
-            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-          >
-            {tag}
-          </span>
+          <Tooltip key={tag}>
+            <TooltipTrigger asChild>
+              <span
+                style={{
+                  backgroundColor: c.bg,
+                  color: c.text,
+                  border: `1px solid ${c.border}`,
+                }}
+                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium max-w-[9rem] truncate cursor-default select-none transition-opacity hover:opacity-80"
+              >
+                {tag}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">{tag}</TooltipContent>
+          </Tooltip>
         )
       })}
     </>
@@ -71,6 +81,7 @@ export function MobileRow({
   onEdit,
   onQrCode,
   onToggleStar,
+  onAliasStats,
 }: UrlRecordRowProps) {
   const shortUrl = makeShortUrl(url)
   return (
@@ -89,12 +100,12 @@ export function MobileRow({
         {url.aliases && url.aliases.length > 0 && (
           <Badge
             variant="outline"
-            className="text-xs gap-1 cursor-pointer"
-            onClick={() => onEdit(url)}
-            title={url.aliases.map((a) => `/${a}`).join(", ")}
+            className="text-xs gap-1 cursor-pointer hover:bg-accent transition-colors"
+            onClick={() => onAliasStats(url)}
+            title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
           >
             <GitBranch className="h-3 w-3" />
-            +{url.aliases.length}
+            {url.aliases.length}
           </Badge>
         )}
         <Button variant="ghost" size="icon" onClick={() => onCopy(url)}>
@@ -128,6 +139,11 @@ export function MobileRow({
       <div className="flex justify-end gap-2 items-center py-1 flex-wrap">
         <Pointer className="h-3 w-3 text-muted-foreground" />
         <span className="text-sm">{url.click_count}</span>
+        {url.last_clicked_at && (
+          <span className="text-xs text-muted-foreground opacity-70">
+            · {relativeTime(url.last_clicked_at)}
+          </span>
+        )}
         <div className="flex-1" />
         <span className="text-sm text-muted-foreground">
           {url.created_at.toLocaleString()}
@@ -168,12 +184,12 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
           {url.aliases && url.aliases.length > 0 && (
             <Badge
               variant="outline"
-              className="text-xs gap-1 cursor-pointer"
-              onClick={() => props.onEdit(url)}
-              title={url.aliases.map((a) => `/${a}`).join(", ")}
+              className="text-xs gap-1 cursor-pointer hover:bg-accent transition-colors"
+              onClick={() => props.onAliasStats(url)}
+              title={`+${url.aliases.length} aliases — ${url.click_count} total clicks`}
             >
               <GitBranch className="h-3 w-3" />
-              +{url.aliases.length}
+              {url.aliases.length}
             </Badge>
           )}
           <TagBadges tags={url.tags ?? []} />
@@ -208,7 +224,14 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
         </span>
       </TableCell>
       <TableCell className="text-center">
-        <span className="font-medium">{url.click_count}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="font-medium cursor-default">{url.click_count}</span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Last click: {relativeTime(url.last_clicked_at)}
+          </TooltipContent>
+        </Tooltip>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">

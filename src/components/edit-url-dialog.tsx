@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { addAliasDirect, addTag, removeAlias, removeTag } from "@/lib/actions"
+import { addAliasDirect, addTag, removeAlias, removeTag, renameShortCodeAction } from "@/lib/actions"
+import { env } from "@/env"
 import type { UrlRecord } from "@/lib/schemas"
 import { getTagColor, makeShortUrl } from "@/lib/utils"
 import { Badge } from "./ui/badge"
@@ -39,18 +40,21 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
   const [snapStarred, setSnapStarred] = useState(false)
   const [snapAliases, setSnapAliases] = useState<string[]>([])
   const [snapUrl, setSnapUrl] = useState("")
+  const [snapShortCode, setSnapShortCode] = useState("")
 
   // ── Working copies — nothing sent to server until Save ─────────────────────
   const [localTags, setLocalTags] = useState<string[]>([])
   const [localStarred, setLocalStarred] = useState(false)
   const [localAliases, setLocalAliases] = useState<string[]>([])
   const [localUrl, setLocalUrl] = useState("")
+  const [localShortCode, setLocalShortCode] = useState("")
 
   // ── Tag / alias inputs ──────────────────────────────────────────────────────
   const [tagInput, setTagInput] = useState("")
   const [tagError, setTagError] = useState<string | null>(null)
   const [aliasInput, setAliasInput] = useState("")
   const [aliasError, setAliasError] = useState<string | null>(null)
+  const [shortCodeError, setShortCodeError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   // ── Reset whenever the dialog opens or a different URL is loaded ────────────
@@ -62,21 +66,25 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
     const aliases = state.url.aliases ?? []
     const starred = state.url.is_starred
     const url = state.url.original_url
+    const shortCode = state.url.short_code
 
     setSnapTags(tags)
     setSnapStarred(starred)
     setSnapAliases(aliases)
     setSnapUrl(url)
+    setSnapShortCode(shortCode)
 
     setLocalTags([...tags])
     setLocalStarred(starred)
     setLocalAliases([...aliases])
     setLocalUrl(url)
+    setLocalShortCode(shortCode)
 
     setTagInput("")
     setTagError(null)
     setAliasInput("")
     setAliasError(null)
+    setShortCodeError(null)
     setSaving(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.open, urlId])
@@ -114,6 +122,7 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
   const sortStr = (arr: string[]) => [...arr].sort().join("\0")
   const hasChanges =
     localUrl.trim() !== snapUrl ||
+    localShortCode.trim() !== snapShortCode ||
     sortStr(localTags) !== sortStr(snapTags) ||
     localStarred !== snapStarred ||
     sortStr(localAliases) !== sortStr(snapAliases)
@@ -183,6 +192,21 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
       catch { errors.push(`Failed to remove "/${a}"`) }
     }
 
+    // Short code rename — must fire last since other calls used the original code
+    const trimmedCode = localShortCode.trim()
+    if (trimmedCode !== snapShortCode) {
+      if (!/^[a-zA-Z0-9_-]{2,25}$/.test(trimmedCode)) {
+        errors.push("Short code must be 2–25 chars: letters, numbers, hyphens, underscores")
+      } else {
+        try {
+          const result = await renameShortCodeAction(snapShortCode, trimmedCode)
+          if (!result) errors.push("Short code not found — rename failed")
+        } catch (e) {
+          errors.push(e instanceof Error ? e.message : "Failed to rename short code")
+        }
+      }
+    }
+
     setSaving(false)
 
     if (errors.length > 0) {
@@ -227,6 +251,30 @@ export function EditUrlDialog({ onClose, onSuccess, ...state }: EditUrlDialogPro
 
           {/* ── Body ────────────────────────────────────────────────────── */}
           <div className="flex flex-col gap-4">
+
+            {/* Short code */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-short-code" className="text-sm font-medium">
+                Short code
+              </Label>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground text-sm font-mono shrink-0">
+                  {env.NEXT_PUBLIC_DOMAIN}/
+                </span>
+                <Input
+                  id="edit-short-code"
+                  value={localShortCode}
+                  onChange={(e) => {
+                    setLocalShortCode(e.target.value)
+                    setShortCodeError(null)
+                  }}
+                  className="font-mono flex-1 min-w-0"
+                />
+              </div>
+              {shortCodeError && (
+                <p className="text-xs text-destructive">{shortCodeError}</p>
+              )}
+            </div>
 
             {/* Destination URL */}
             <div className="flex flex-col gap-1.5">

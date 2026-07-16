@@ -161,13 +161,21 @@ export class UrlService {
   }
 
   async incrementClickCount(shortCode: string): Promise<void> {
-    await this.pool.query(
-      `UPDATE urls
-       SET click_count = click_count + 1
-       WHERE short_code = $1
-          OR id = (SELECT url_id FROM url_aliases WHERE alias_code = $1 LIMIT 1)`,
-      [shortCode]
-    )
+    await Promise.all([
+      this.pool.query(
+        `UPDATE urls
+         SET click_count = click_count + 1, last_clicked_at = CURRENT_TIMESTAMP
+         WHERE short_code = $1
+            OR id = (SELECT url_id FROM url_aliases WHERE alias_code = $1 LIMIT 1)`,
+        [shortCode]
+      ),
+      this.pool.query(
+        `UPDATE url_aliases
+         SET click_count = click_count + 1, last_clicked_at = CURRENT_TIMESTAMP
+         WHERE alias_code = $1`,
+        [shortCode]
+      ),
+    ])
   }
 
   /** Returns all distinct tag names in use, sorted */
@@ -207,12 +215,84 @@ export class UrlService {
 
   async addAlias(urlId: number, aliasCode: string): Promise<void> {
     const inUrls = await this.pool.query(
-      "SELECT 1 FROM urls WHERE short_code = $1",
+      "SELECT id, original_url, click_count, last_clicked_at FROM urls WHERE short_code = $1",
       [aliasCode]
     )
+
     if (inUrls.rows.length > 0) {
-      throw new Error(`"${aliasCode}" is already used as a primary short code.`)
+      // aliasCode is an existing primary short_code — check destinations match
+      const current = await this.pool.query(
+        "SELECT original_url FROM urls WHERE id = $1",
+        [urlId]
+      )
+      if (current.rows[0]?.original_url !== inUrls.rows[0].original_url) {
+        throw new Error(
+          `"${aliasCode}" is already used as a short code pointing to a different URL.`
+        )
+      }
+
+      // Same destination: merge the old URL entry into the current one
+      const oldUrlId: number = inUrls.rows[0].id
+      const oldClickCount: number = inUrls.rows[0].click_count
+      const oldLastClickedAt: Date | null = inUrls.rows[0].last_clicked_at
+
+      const client = await this.pool.connect()
+      try {
+        await client.query("BEGIN")
+
+        // Prevent alias conflict before committing
+        const inAliases = await client.query(
+          "SELECT 1 FROM url_aliases WHERE alias_code = $1",
+          [aliasCode]
+        )
+        if (inAliases.rows.length > 0) {
+          await client.query("ROLLBACK")
+          throw new Error(`Alias "${aliasCode}" already exists.`)
+        }
+
+        // Re-parent all aliases of the old URL to the current URL
+        await client.query(
+          "UPDATE url_aliases SET url_id = $1 WHERE url_id = $2",
+          [urlId, oldUrlId]
+        )
+
+        // Transfer tags (ignore duplicates)
+        await client.query(
+          `INSERT INTO url_tags (url_id, tag_name)
+           SELECT $1, tag_name FROM url_tags WHERE url_id = $2
+           ON CONFLICT DO NOTHING`,
+          [urlId, oldUrlId]
+        )
+
+        // Merge click count and keep the more recent last_clicked_at
+        await client.query(
+          `UPDATE urls
+           SET click_count = click_count + $1,
+               last_clicked_at = GREATEST(last_clicked_at, $2)
+           WHERE id = $3`,
+          [oldClickCount, oldLastClickedAt, urlId]
+        )
+
+        // Delete the old URL row (url_tags cascade-delete; aliases already re-parented)
+        await client.query("DELETE FROM urls WHERE id = $1", [oldUrlId])
+
+        // Insert the alias entry for the merged code
+        await client.query(
+          "INSERT INTO url_aliases (url_id, alias_code) VALUES ($1, $2)",
+          [urlId, aliasCode]
+        )
+
+        await client.query("COMMIT")
+      } catch (e) {
+        await client.query("ROLLBACK")
+        throw e
+      } finally {
+        client.release()
+      }
+      return
     }
+
+    // Normal alias creation — aliasCode not in use as a primary short_code
     const inAliases = await this.pool.query(
       "SELECT 1 FROM url_aliases WHERE alias_code = $1",
       [aliasCode]
@@ -240,6 +320,61 @@ export class UrlService {
       [urlId]
     )
     return result.rows.map((r: { alias_code: string }) => r.alias_code)
+  }
+
+  async getAliasStats(
+    urlId: number
+  ): Promise<
+    {
+      alias_code: string
+      click_count: number
+      last_clicked_at: Date | null
+      created_at: Date
+    }[]
+  > {
+    const result = await this.pool.query(
+      "SELECT alias_code, click_count, last_clicked_at, created_at FROM url_aliases WHERE url_id = $1 ORDER BY created_at",
+      [urlId]
+    )
+    return result.rows
+  }
+
+  async renameShortCode(
+    oldCode: string,
+    newCode: string
+  ): Promise<UrlRecord | null> {
+    if (newCode === oldCode) return this.getUrlByShortCode(oldCode)
+    const inUrls = await this.pool.query(
+      "SELECT 1 FROM urls WHERE short_code = $1",
+      [newCode]
+    )
+    if (inUrls.rows.length > 0) {
+      throw new Error(`"${newCode}" is already used as a short code.`)
+    }
+    const inAliases = await this.pool.query(
+      "SELECT url_id FROM url_aliases WHERE alias_code = $1",
+      [newCode]
+    )
+    if (inAliases.rows.length > 0) {
+      const isOwnAlias =
+        inAliases.rows[0].url_id ===
+        (
+          await this.pool.query("SELECT id FROM urls WHERE short_code = $1", [
+            oldCode,
+          ])
+        ).rows[0]?.id
+      throw new Error(
+        isOwnAlias
+          ? `"${newCode}" is already one of this URL's aliases. Remove it first, then rename.`
+          : `"${newCode}" is already used as an alias.`
+      )
+    }
+    const result = await this.pool.query(
+      "UPDATE urls SET short_code = $1, updated_at = CURRENT_TIMESTAMP WHERE short_code = $2 RETURNING *",
+      [newCode, oldCode]
+    )
+    if (!result.rows[0]) return null
+    return this.attachMetadata(result.rows[0])
   }
 
   async getAliasRow(
@@ -274,6 +409,7 @@ export class UrlService {
       ...row,
       tags: row.tags ?? [],
       aliases: row.aliases ?? [],
+      last_clicked_at: row.last_clicked_at ?? null,
     }
   }
 

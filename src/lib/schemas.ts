@@ -10,6 +10,7 @@ export const URLRecord = z.object({
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
   click_count: z.number().int().nonnegative(),
+  last_clicked_at: z.coerce.date().nullable().optional().default(null),
   aliases: z.array(z.string()).optional().default([]),
 })
 export const URLRecords = z.array(URLRecord)
