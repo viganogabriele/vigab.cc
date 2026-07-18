@@ -1,4 +1,5 @@
 import { createNextHandler } from "@ts-rest/serverless/next"
+import { analyticsService } from "@/lib/analytics-service"
 import { contract } from "@/lib/contract"
 import { urlService } from "@/lib/url-service"
 
@@ -118,6 +119,12 @@ const handler = createNextHandler(
       )
       if (!deleted) return { status: 404, body: { error: "Alias not found" } }
       return { status: 204, body: undefined }
+    },
+
+    getAnalytics: async ({ params }) => {
+      const analytics = await analyticsService.getAnalytics(params.shortCode)
+      if (!analytics) return { status: 404, body: { error: "URL not found" } }
+      return { status: 200, body: analytics }
     },
   },
   { handlerType: "app-router", basePath: "/api" }

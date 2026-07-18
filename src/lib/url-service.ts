@@ -70,6 +70,34 @@ export class UrlService {
     return this.parseRow(result.rows[0])
   }
 
+  /**
+   * Resolve a code to what a redirect needs: the destination plus the ids used
+   * for analytics. `aliasId` is null when the code is the primary short_code.
+   */
+  async resolveClickTarget(code: string): Promise<{
+    urlId: number
+    aliasId: number | null
+    originalUrl: string
+  } | null> {
+    const result = await this.pool.query(
+      `SELECT u.id AS url_id, u.original_url,
+         (SELECT a.id FROM url_aliases a
+           WHERE a.alias_code = $1 AND a.url_id = u.id LIMIT 1) AS alias_id
+       FROM urls u
+       WHERE u.short_code = $1
+          OR u.id = (SELECT url_id FROM url_aliases WHERE alias_code = $1 LIMIT 1)
+       LIMIT 1`,
+      [code]
+    )
+    const row = result.rows[0]
+    if (!row) return null
+    return {
+      urlId: row.url_id,
+      aliasId: row.alias_id ?? null,
+      originalUrl: row.original_url,
+    }
+  }
+
   async getAllUrls(
     options: Partial<GetUrlsQueryParams>
   ): Promise<PaginatedUrlsResponse> {

@@ -33,6 +33,15 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: z.string(),
     NEXTAUTH_SECRET: z.string(),
     NEXTAUTH_URL: z.string().optional(),
+    // Secret key for the HMAC used to derive the daily, per-link visitor hash
+    // that estimates unique clicks without cookies. Keep it secret and stable.
+    // Optional: when unset we fall back to NEXTAUTH_SECRET so deployments keep
+    // working, but a dedicated secret is recommended. Never hardcode it.
+    ANALYTICS_HASH_SECRET: z.string().min(16).optional(),
+    // Optional override for the request header a trusted proxy/CDN uses to
+    // expose the visitor's country (e.g. "cf-ipcountry"). When set it is tried
+    // before the built-in defaults. Country-level only — never city/GPS.
+    GEO_COUNTRY_HEADER: z.string().optional(),
   },
 
   runtimeEnv: {
@@ -52,6 +61,8 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    ANALYTICS_HASH_SECRET: process.env.ANALYTICS_HASH_SECRET,
+    GEO_COUNTRY_HEADER: process.env.GEO_COUNTRY_HEADER,
   },
 
   /**
