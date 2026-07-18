@@ -39,8 +39,10 @@ export const env = createEnv({
     // working, but a dedicated secret is recommended. Never hardcode it.
     ANALYTICS_HASH_SECRET: z.string().min(16).optional(),
     // Optional override for the request header a trusted proxy/CDN uses to
-    // expose the visitor's country (e.g. "cf-ipcountry"). When set it is tried
-    // before the built-in defaults. Country-level only — never city/GPS.
+    // expose the visitor's country (e.g. "cf-ipcountry"). When set it is used
+    // EXCLUSIVELY (no fallback to other, client-settable headers). Leave unset
+    // to trust the built-in edge headers (Cloudflare/Vercel). Country-level
+    // only — never city/GPS.
     GEO_COUNTRY_HEADER: z.string().optional(),
   },
 

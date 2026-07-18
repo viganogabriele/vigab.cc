@@ -21,7 +21,8 @@ export const PRIMARY_SCOPE = 0
 // yesterday (≈24–48h) as a small buffer around the UTC day boundary, then purge.
 export const DEDUP_RETENTION_DAYS = 1
 
-const PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000
+// Fraction of recorded clicks that also trigger an (idempotent) dedup purge.
+const PURGE_PROBABILITY = 0.02
 
 // ── Pure, side-effect-free helpers (unit-testable without a database) ─────────
 
@@ -147,78 +148,78 @@ export class AnalyticsService {
       { aliasId: LINK_SCOPE, token: `${input.urlId}:link` },
     ]
 
-    for (const s of scopes) {
-      // Derive the (non-reversible) per-scope daily hash. After this iteration
-      // the raw ip/userAgent are not referenced by anything we persist.
-      const hash = computeDailyVisitorHash(this.secret, {
-        scopeToken: s.token,
-        dateStr,
-        ip: input.ip,
-        userAgent: input.userAgent,
-      })
+    // All writes for a click run in ONE transaction so the dedup row and the
+    // aggregate increments succeed or fail together — no partial writes, and no
+    // "already deduped but not counted" undercount on a mid-write failure.
+    const client = await this.pool.connect()
+    try {
+      await client.query("BEGIN")
 
-      // First sighting of this visitor today (for this scope) → count a unique.
-      // The unique constraint makes this atomic: concurrent duplicate clicks
-      // race on the insert and exactly one wins, so we never over-count.
-      const uniqueDelta = (await this.insertDedup(
-        input.urlId,
-        s.aliasId,
-        dateStr,
-        hash
-      ))
-        ? 1
-        : 0
+      for (const s of scopes) {
+        // Derive the (non-reversible) per-scope daily hash. After this the raw
+        // ip/userAgent are not referenced by anything we persist.
+        const hash = computeDailyVisitorHash(this.secret, {
+          scopeToken: s.token,
+          dateStr,
+          ip: input.ip,
+          userAgent: input.userAgent,
+        })
 
-      for (const [type, start] of buckets) {
-        await this.pool.query(
-          `INSERT INTO click_analytics_buckets
-             (url_id, alias_id, bucket_type, bucket_start, clicks_count, unique_estimated_count)
-           VALUES ($1, $2, $3, $4, 1, $5)
-           ON CONFLICT (url_id, alias_id, bucket_type, bucket_start)
+        // First sighting of this visitor today (for this scope) → count a
+        // unique. We check-then-insert inside the transaction; the unique
+        // constraint + ON CONFLICT DO NOTHING is the concurrency backstop.
+        const existing = await client.query(
+          `SELECT 1 FROM daily_unique_click_dedup
+           WHERE url_id = $1 AND alias_id = $2 AND bucket_date = $3
+             AND daily_visitor_hash = $4
+           LIMIT 1`,
+          [input.urlId, s.aliasId, dateStr, hash]
+        )
+        const uniqueDelta = existing.rows.length === 0 ? 1 : 0
+        if (uniqueDelta === 1) {
+          await client.query(
+            `INSERT INTO daily_unique_click_dedup
+               (url_id, alias_id, bucket_date, daily_visitor_hash)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (url_id, alias_id, bucket_date, daily_visitor_hash)
+             DO NOTHING`,
+            [input.urlId, s.aliasId, dateStr, hash]
+          )
+        }
+
+        for (const [type, start] of buckets) {
+          await client.query(
+            `INSERT INTO click_analytics_buckets
+               (url_id, alias_id, bucket_type, bucket_start, clicks_count, unique_estimated_count)
+             VALUES ($1, $2, $3, $4, 1, $5)
+             ON CONFLICT (url_id, alias_id, bucket_type, bucket_start)
+             DO UPDATE SET
+               clicks_count = click_analytics_buckets.clicks_count + 1,
+               unique_estimated_count =
+                 click_analytics_buckets.unique_estimated_count + $5,
+               updated_at = CURRENT_TIMESTAMP`,
+            [input.urlId, s.aliasId, type, start, uniqueDelta]
+          )
+        }
+
+        await client.query(
+          `INSERT INTO click_country_analytics
+             (url_id, alias_id, bucket_date, country_code, clicks_count)
+           VALUES ($1, $2, $3, $4, 1)
+           ON CONFLICT (url_id, alias_id, bucket_date, country_code)
            DO UPDATE SET
-             clicks_count = click_analytics_buckets.clicks_count + 1,
-             unique_estimated_count =
-               click_analytics_buckets.unique_estimated_count + $5,
+             clicks_count = click_country_analytics.clicks_count + 1,
              updated_at = CURRENT_TIMESTAMP`,
-          [input.urlId, s.aliasId, type, start, uniqueDelta]
+          [input.urlId, s.aliasId, dateStr, country]
         )
       }
 
-      await this.pool.query(
-        `INSERT INTO click_country_analytics
-           (url_id, alias_id, bucket_date, country_code, clicks_count)
-         VALUES ($1, $2, $3, $4, 1)
-         ON CONFLICT (url_id, alias_id, bucket_date, country_code)
-         DO UPDATE SET
-           clicks_count = click_country_analytics.clicks_count + 1,
-           updated_at = CURRENT_TIMESTAMP`,
-        [input.urlId, s.aliasId, dateStr, country]
-      )
-    }
-  }
-
-  /**
-   * Insert a dedup row. Returns true if this visitor/scope/day was not seen
-   * before, false if it already existed (unique-violation). Never stores the
-   * raw IP/UA — only the hash.
-   */
-  private async insertDedup(
-    urlId: number,
-    aliasId: number,
-    dateStr: string,
-    hash: string
-  ): Promise<boolean> {
-    try {
-      await this.pool.query(
-        `INSERT INTO daily_unique_click_dedup (url_id, alias_id, bucket_date, daily_visitor_hash)
-         VALUES ($1, $2, $3, $4)`,
-        [urlId, aliasId, dateStr, hash]
-      )
-      return true
+      await client.query("COMMIT")
     } catch (e) {
-      // 23505 = unique_violation → already counted today for this scope.
-      if ((e as { code?: string }).code === "23505") return false
+      await client.query("ROLLBACK")
       throw e
+    } finally {
+      client.release()
     }
   }
 
@@ -230,6 +231,15 @@ export class AnalyticsService {
   async recordClickSafely(input: RecordClickInput): Promise<boolean> {
     try {
       await this.recordClick(input)
+      // Opportunistic, traffic-driven cleanup. Runs on a small fraction of
+      // clicks so retention holds on serverless runtimes (where a long-lived
+      // timer would never fire) without adding a write to every request. It is
+      // idempotent, so a dedicated cron may also call purgeExpiredDedup().
+      if (Math.random() < PURGE_PROBABILITY) {
+        await this.purgeExpiredDedup().catch(() => {
+          console.error("Analytics dedup purge failed")
+        })
+      }
       return true
     } catch {
       console.error("Failed to record click analytics")
@@ -352,14 +362,3 @@ export class AnalyticsService {
 }
 
 export const analyticsService = new AnalyticsService()
-
-// Periodically purge expired deduplication rows. Guarded like db init so it
-// never runs during builds. `unref` keeps it from holding the process open.
-if (!process.env.SKIP_ENV_VALIDATION) {
-  const timer = setInterval(() => {
-    analyticsService
-      .purgeExpiredDedup()
-      .catch(() => console.error("Analytics dedup purge failed"))
-  }, PURGE_INTERVAL_MS)
-  timer.unref?.()
-}

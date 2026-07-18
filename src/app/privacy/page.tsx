@@ -44,7 +44,8 @@ export default function PrivacyPage() {
         <CardHeader>
           <CardTitle>What we collect</CardTitle>
           <CardDescription>
-            Only aggregated statistics are kept — never per-person records.
+            Almost everything kept is aggregated statistics; the only exception
+            is a short-lived deduplication hash described below.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -62,6 +63,12 @@ export default function PrivacyPage() {
             <Item>
               An <strong>estimated</strong> number of unique clicks per day (see
               below).
+            </Item>
+            <Item>
+              A short-lived, link-scoped daily{" "}
+              <strong>deduplication hash</strong> — the only per-visitor value
+              stored, and only to avoid counting the same person twice in one
+              day. It is deleted within roughly 24–48 hours (see below).
             </Item>
           </ul>
         </CardContent>
@@ -96,7 +103,7 @@ export default function PrivacyPage() {
         <CardHeader>
           <CardTitle>How unique clicks are estimated</CardTitle>
           <CardDescription>
-            Without cookies, and without keeping any personal data.
+            Without cookies, and without any direct identifiers or profiles.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
@@ -157,9 +164,45 @@ export default function PrivacyPage() {
             Because these providers are based in the United States, the limited
             data involved — the aggregate statistics and the short-lived daily
             hashes stored in the database — may be transferred outside the EU.
-            Such transfers rely on the safeguards those providers offer,
-            including the EU Standard Contractual Clauses and their
-            participation in the EU–US Data Privacy Framework.
+            Each provider offers its own safeguards for this transfer:
+          </p>
+          <ul className="space-y-2 list-disc pl-5">
+            <Item>
+              <strong>Vercel</strong> — certified under the EU–US Data Privacy
+              Framework and relying on the EU Standard Contractual Clauses in
+              its Data Processing Addendum (
+              <a
+                href="https://vercel.com/legal/dpa"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                vercel.com/legal/dpa
+              </a>
+              ).
+            </Item>
+            <Item>
+              <strong>Cloudflare</strong> — relying on the EU–US Data Privacy
+              Framework and the EU Standard Contractual Clauses via its Data
+              Processing Addendum (
+              <a
+                href="https://www.cloudflare.com/trust-hub/gdpr/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                cloudflare.com/trust-hub/gdpr
+              </a>
+              ).
+            </Item>
+          </ul>
+          <p>
+            You can obtain a copy of the applicable safeguards from each
+            provider at the links above, or by contacting us at{" "}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
+              {CONTACT_EMAIL}
+            </a>
+            .
           </p>
         </CardContent>
       </Card>
@@ -199,11 +242,12 @@ export default function PrivacyPage() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <p>
-            Because we store no cookies, no identifiers and no raw IP or
-            User-Agent, in practice we hold nothing that lets us single you out
-            or link a request back to you. Where applicable law grants you
-            rights of access, rectification, erasure, restriction or objection
-            to processing, you can exercise them by writing to{" "}
+            We store no cookies, no direct identifiers and no raw IP or
+            User-Agent; the only per-visitor value we keep is the short-lived
+            daily hash above, which we cannot reverse to identify a person.
+            Where applicable law grants you rights of access, rectification,
+            erasure, restriction or objection to processing, you can exercise
+            them by writing to{" "}
             <a href={`mailto:${CONTACT_EMAIL}`} className="underline">
               {CONTACT_EMAIL}
             </a>

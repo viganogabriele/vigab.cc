@@ -36,8 +36,22 @@ function densify(
   type: BucketType,
   now: Date
 ): AnalyticsBucketPoint[] {
-  if (type === "month") return points // months are already few; show as-is
   const byTime = new Map(points.map((p) => [p.bucketStart.getTime(), p]))
+  const out: AnalyticsBucketPoint[] = []
+
+  // Months vary in length, so step by calendar month rather than by a fixed
+  // number of milliseconds (Date.UTC normalises negative months across years).
+  if (type === "month") {
+    const count = 12
+    for (let i = count - 1; i >= 0; i--) {
+      const t = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1)
+      out.push(
+        byTime.get(t) ?? { bucketStart: new Date(t), clicks: 0, unique: 0 }
+      )
+    }
+    return out
+  }
+
   const count = type === "hour" ? 24 : 14
   const stepMs = type === "hour" ? 3_600_000 : 86_400_000
   const end =
@@ -50,11 +64,11 @@ function densify(
         )
       : Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
 
-  const out: AnalyticsBucketPoint[] = []
   for (let i = count - 1; i >= 0; i--) {
     const t = end - i * stepMs
-    const existing = byTime.get(t)
-    out.push(existing ?? { bucketStart: new Date(t), clicks: 0, unique: 0 })
+    out.push(
+      byTime.get(t) ?? { bucketStart: new Date(t), clicks: 0, unique: 0 }
+    )
   }
   return out
 }
@@ -85,7 +99,8 @@ export function BarChart({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-end gap-[3px] h-40" aria-hidden={false}>
+      {/* Visual chart — decorative; the sr-only table below carries the data. */}
+      <div className="flex items-end gap-[3px] h-40" aria-hidden="true">
         {data.map((p) => {
           const heightPct = (p.clicks / max) * 100
           return (
@@ -107,7 +122,7 @@ export function BarChart({
           )
         })}
       </div>
-      <div className="flex gap-[3px]">
+      <div className="flex gap-[3px]" aria-hidden="true">
         {data.map((p, i) => (
           <div
             key={p.bucketStart.getTime()}
@@ -117,22 +132,52 @@ export function BarChart({
           </div>
         ))}
       </div>
+      {/* Accessible equivalent for keyboard / screen-reader users. */}
+      <table className="sr-only">
+        <caption>Clicks by {type}</caption>
+        <thead>
+          <tr>
+            <th>Period</th>
+            <th>Clicks</th>
+            <th>Unique</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((p) => (
+            <tr key={p.bucketStart.getTime()}>
+              <td>{fullLabelFor(p.bucketStart, type)}</td>
+              <td>{p.clicks}</td>
+              <td>{p.unique}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
 
 /** Tiny inline sparkline for compact summaries (recent daily trend). */
-export function Sparkline({ points }: { points: AnalyticsBucketPoint[] }) {
-  const data = points.slice(-14)
+export function Sparkline({
+  points,
+  now = new Date(),
+}: {
+  points: AnalyticsBucketPoint[]
+  now?: Date
+}) {
+  // Densify to the last 14 calendar days so gaps show as gaps, not compressed.
+  const data = densify(points, "day", now)
   const max = Math.max(1, ...data.map((p) => p.clicks))
-  if (data.length === 0) {
-    return <span className="text-xs text-muted-foreground">no trend yet</span>
-  }
+  const total = data.reduce((s, p) => s + p.clicks, 0)
   return (
-    <div className="flex items-end gap-[2px] h-6" title="Recent daily clicks">
+    <div
+      className="flex items-end gap-[2px] h-6"
+      role="img"
+      aria-label={`Recent daily clicks: ${total} over the last ${data.length} days`}
+    >
       {data.map((p) => (
         <div
           key={p.bucketStart.getTime()}
+          aria-hidden="true"
           className="w-1 rounded-sm bg-blue-500/70 min-h-[1px]"
           style={{
             height: `${Math.max((p.clicks / max) * 100, p.clicks > 0 ? 12 : 4)}%`,

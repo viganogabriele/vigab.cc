@@ -17,12 +17,14 @@ import { env } from "@/env"
 /** Value stored when the country cannot be determined. */
 export const UNKNOWN_COUNTRY = "Unknown"
 
-// Headers commonly set by CDNs/proxies with an ISO 3166-1 alpha-2 country code.
-const DEFAULT_COUNTRY_HEADERS = [
+// Country headers written by the trusted edge/CDN in front of the app. These
+// are set (and generic client-supplied copies overwritten) by the platform, so
+// they can't be spoofed by the visitor. Deliberately NOT including generic,
+// client-settable names like `x-geo-country`/`x-country-code`. If you run behind
+// a different trusted proxy, name its header via GEO_COUNTRY_HEADER.
+const TRUSTED_EDGE_HEADERS = [
   "cf-ipcountry", // Cloudflare
   "x-vercel-ip-country", // Vercel
-  "x-geo-country",
-  "x-country-code",
 ]
 
 // Sentinel values some proxies emit when they could not resolve a country.
@@ -37,9 +39,11 @@ interface HeaderGetter {
  * or {@link UNKNOWN_COUNTRY} when unavailable/invalid. Country-level only.
  */
 export function getCountryFromHeaders(headers: HeaderGetter): string {
+  // When a specific trusted header is configured, use ONLY it — don't fall back
+  // to other headers that this deployment's edge may not control.
   const candidates = env.GEO_COUNTRY_HEADER
-    ? [env.GEO_COUNTRY_HEADER, ...DEFAULT_COUNTRY_HEADERS]
-    : DEFAULT_COUNTRY_HEADERS
+    ? [env.GEO_COUNTRY_HEADER]
+    : TRUSTED_EDGE_HEADERS
 
   for (const name of candidates) {
     const raw = headers.get(name)
