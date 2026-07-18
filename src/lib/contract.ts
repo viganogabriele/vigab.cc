@@ -2,6 +2,7 @@ import { initContract } from "@ts-rest/core"
 import z from "zod"
 import {
   AliasRecord,
+  AnalyticsResult,
   GetUrlsQueryParams,
   PaginatedUrlsResponse,
   URLRecord,
@@ -85,5 +86,11 @@ export const contract = c.router({
     path: "/urls/:shortCode/aliases/:aliasCode",
     responses: { 204: z.void(), 404: APIError },
     summary: "Remove an alias from a short URL",
+  },
+  getAnalytics: {
+    method: "GET",
+    path: "/urls/:shortCode/analytics",
+    responses: { 200: AnalyticsResult, 404: APIError },
+    summary: "Get privacy-preserving aggregated click analytics for a URL",
   },
 })

@@ -45,6 +45,7 @@ import { useAllTags, useUrls } from "@/hooks/urls"
 import type { UrlRecord, UrlsQueryParams } from "@/lib/schemas"
 import { copyToClipboard, getTagColor, makeShortUrl } from "@/lib/utils"
 import { AliasStatsDialog } from "./alias-stats-dialog"
+import { AnalyticsDialog } from "./analytics-dialog"
 import { CreateUrlDialog } from "./create-url-dialog"
 import { type EditDialogState, EditUrlDialog } from "./edit-url-dialog"
 import { PaginationControls } from "./pagination"
@@ -74,6 +75,10 @@ export function Dashboard() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialog, setEditDialog] = useState<EditDialogState>({ open: false })
   const [aliasStatsDialog, setAliasStatsDialog] = useState<{
+    open: boolean
+    url?: UrlRecord
+  }>({ open: false })
+  const [analyticsDialog, setAnalyticsDialog] = useState<{
     open: boolean
     url?: UrlRecord
   }>({ open: false })
@@ -140,6 +145,10 @@ export function Dashboard() {
 
   const handleAliasStats = useCallback((url: UrlRecord) => {
     setAliasStatsDialog({ open: true, url })
+  }, [])
+
+  const handleAnalytics = useCallback((url: UrlRecord) => {
+    setAnalyticsDialog({ open: true, url })
   }, [])
 
   const handleToggleStar = useCallback(
@@ -354,6 +363,7 @@ export function Dashboard() {
                     }
                     onToggleStar={handleToggleStar}
                     onAliasStats={handleAliasStats}
+                    onAnalytics={handleAnalytics}
                   />
                 ))}
               </div>
@@ -383,6 +393,7 @@ export function Dashboard() {
                       }
                       onToggleStar={handleToggleStar}
                       onAliasStats={handleAliasStats}
+                      onAnalytics={handleAnalytics}
                     />
                   ))}
                 </TableBody>
@@ -433,6 +444,12 @@ export function Dashboard() {
           setAliasStatsDialog({ open: false })
           setQrDialog({ open: true, url, aliasCode })
         }}
+      />
+
+      <AnalyticsDialog
+        open={analyticsDialog.open}
+        url={analyticsDialog.url}
+        onClose={() => setAnalyticsDialog({ open: false })}
       />
 
       <QrCodeDialog

@@ -1,5 +1,6 @@
 import { Pool, type PoolConfig } from "pg"
 import { env } from "@/env"
+import { ANALYTICS_SCHEMA_SQL } from "./analytics-schema"
 
 let pool: Pool | null = null
 
@@ -95,6 +96,9 @@ async function migrateDatabase() {
     ALTER TABLE urls ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
     ALTER TABLE url_aliases ADD COLUMN IF NOT EXISTS last_clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
   `)
+
+  // Privacy-preserving click analytics (aggregate-only). See analytics-schema.ts.
+  await pool.query(ANALYTICS_SCHEMA_SQL)
 }
 
 let init = false

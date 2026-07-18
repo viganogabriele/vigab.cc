@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  ChartColumn,
   Copy,
   Edit,
   GitBranch,
@@ -28,6 +29,7 @@ export type UrlRecordRowProps = {
   onQrCode: (url: UrlRecord) => void
   onToggleStar: (url: UrlRecord) => void
   onAliasStats: (url: UrlRecord) => void
+  onAnalytics: (url: UrlRecord) => void
 }
 
 function TagBadges({ tags }: { tags: string[] }) {
@@ -93,6 +95,7 @@ export function MobileRow({
   onQrCode,
   onToggleStar,
   onAliasStats,
+  onAnalytics,
 }: UrlRecordRowProps) {
   const shortUrl = makeShortUrl(url)
   return (
@@ -168,6 +171,14 @@ export function MobileRow({
           {url.created_at.toLocaleString()}
         </span>
         <div className="flex justify-end items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onAnalytics(url)}
+            title="View analytics"
+          >
+            <ChartColumn />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => onQrCode(url)}>
             <QrCode />
           </Button>
@@ -264,6 +275,14 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => props.onAnalytics(url)}
+            title="View analytics"
+          >
+            <ChartColumn />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

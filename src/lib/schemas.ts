@@ -43,6 +43,44 @@ export type AliasRecords = z.infer<typeof AliasRecords>
 export type AliasStatsRow = z.infer<typeof AliasStatsRow>
 export type AliasStatsResult = z.infer<typeof AliasStatsResult>
 
+// ── Analytics (privacy-preserving, aggregated) ───────────────────────────────
+
+export const AnalyticsBucketPoint = z.object({
+  bucketStart: z.coerce.date(),
+  clicks: z.number().int().nonnegative(),
+  unique: z.number().int().nonnegative(),
+})
+
+export const AnalyticsCountryPoint = z.object({
+  countryCode: z.string(),
+  clicks: z.number().int().nonnegative(),
+})
+
+export const AnalyticsScope = z.object({
+  // "link" (whole link), "primary" (short_code route), or an alias code
+  key: z.string(),
+  // -1 = link, 0 = primary short_code, >0 = url_aliases.id
+  aliasId: z.number().int(),
+  label: z.string(),
+  totalClicks: z.number().int().nonnegative(),
+  uniqueToday: z.number().int().nonnegative(),
+  hourly: z.array(AnalyticsBucketPoint),
+  daily: z.array(AnalyticsBucketPoint),
+  monthly: z.array(AnalyticsBucketPoint),
+  countries: z.array(AnalyticsCountryPoint),
+})
+
+export const AnalyticsResult = z.object({
+  shortCode: z.string(),
+  generatedAt: z.coerce.date(),
+  scopes: z.array(AnalyticsScope),
+})
+
+export type AnalyticsBucketPoint = z.infer<typeof AnalyticsBucketPoint>
+export type AnalyticsCountryPoint = z.infer<typeof AnalyticsCountryPoint>
+export type AnalyticsScope = z.infer<typeof AnalyticsScope>
+export type AnalyticsResult = z.infer<typeof AnalyticsResult>
+
 export const PaginatedUrlsResponse = z.object({
   urls: z.array(URLRecord),
   pagination: z.object({
