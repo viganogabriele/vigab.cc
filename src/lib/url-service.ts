@@ -399,14 +399,15 @@ export class UrlService {
       const oldAliasId: number = aliasRes.rows[0].id
 
       // Direct clicks on the current primary = total – sum of all alias clicks
-      const aliasSumRes = await client.query(
-        "SELECT COALESCE(SUM(click_count), 0) AS total FROM url_aliases WHERE url_id = $1",
+      const aliasRowsRes = await client.query(
+        "SELECT click_count FROM url_aliases WHERE url_id = $1 FOR UPDATE",
         [urlId]
       )
-      const directClicks = Math.max(
-        0,
-        Number(totalClicks) - Number(aliasSumRes.rows[0].total)
+      const aliasClicks = aliasRowsRes.rows.reduce(
+        (total, alias) => total + Number(alias.click_count),
+        0
       )
+      const directClicks = Math.max(0, Number(totalClicks) - aliasClicks)
 
       // Demote current primary: insert it as a new alias
       const newAliasRes = await client.query(

@@ -259,9 +259,12 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
       <TableCell>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="text-sm text-muted-foreground whitespace-nowrap cursor-default">
+            <button
+              type="button"
+              className="text-sm text-muted-foreground whitespace-nowrap cursor-default"
+            >
               {url.created_at.toLocaleDateString()}
-            </span>
+            </button>
           </TooltipTrigger>
           <TooltipContent side="top">
             {url.created_at.toLocaleString()}

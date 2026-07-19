@@ -25,7 +25,7 @@ CI runs `pnpm exec biome ci .` and `pnpm run build` with `SKIP_ENV_VALIDATION=tr
 
 ### Entry points
 
-```
+```text
 src/app/[shortCode]/page.tsx          lookup, click recording, redirect
 src/app/admin/page.tsx                session-gated dashboard
 src/app/api/[...ts-rest]/route.ts     REST implementation, base path /api
@@ -36,7 +36,7 @@ src/app/openapi.json/route.ts         OpenAPI doc generated from contract
 
 ### Library
 
-```
+```text
 src/lib/contract.ts          ts-rest routes — the API source of truth
 src/lib/url-service.ts       all DB operations on urls/url_aliases/url_tags
 src/lib/analytics-service.ts click recording + aggregated analytics queries
@@ -73,6 +73,8 @@ Schema changes go in `initDatabase()` / `migrateDatabase()` in `db.ts` as idempo
 ## Authentication and authorization
 
 NextAuth with Google only (`src/lib/auth.ts`). Sign-in requires `ALLOWED_EMAIL`. `/admin` redirects unauthenticated users to `/api/auth/signin?callbackUrl=/admin`.
+
+For local dashboard work without OAuth, set `ALLOW_ANONYMOUS_LOCAL_ADMIN=true` while `NODE_ENV=development`. Both conditions are required; this server-only opt-in renders `/admin` without a session and skips OAuth initialization. Do not set it in deployed environments.
 
 **The ts-rest handlers contain no session checks.** `/api/urls` and mutations are not protected at the application layer — security must be enforced externally (e.g. Cloudflare Access). The OpenAPI doc declares CF Access header schemes but the handlers do not validate them.
 

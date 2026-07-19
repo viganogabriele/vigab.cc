@@ -141,20 +141,21 @@ export function EditUrlDialog({
   const handlePromote = async (alias: string) => {
     if (!state.open) return
     if (hasChanges) {
-      toast.error("Salva le modifiche prima di impostare il codice primario")
+      toast.error("Save changes before setting the primary code")
       return
     }
     setPromoting(alias)
     try {
       const result = await promoteAliasAction(state.url.id, alias)
       if (!result) {
-        toast.error("Alias non trovato")
+        toast.error("Alias not found")
       } else {
-        toast.success(`/${alias} è ora il codice primario`)
+        toast.success(`/${alias} is now the primary code`)
         onSuccessRef.current()
+        onClose()
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Operazione fallita")
+      toast.error(e instanceof Error ? e.message : "Operation failed")
     } finally {
       setPromoting(null)
     }
@@ -480,10 +481,10 @@ export function EditUrlDialog({
                       <button
                         type="button"
                         onClick={() => handlePromote(alias)}
-                        disabled={promoting !== null || saving}
+                        disabled={promoting !== null || saving || hasChanges}
                         className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 focus:outline-none"
-                        title={`Imposta /${alias} come codice primario`}
-                        aria-label={`Imposta /${alias} come codice primario`}
+                        title={`Set /${alias} as the primary code`}
+                        aria-label={`Set /${alias} as the primary code`}
                       >
                         {promoting === alias ? (
                           "…"
