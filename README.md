@@ -94,6 +94,7 @@ DB_URL=postgresql://user:password@localhost:5432/vigab
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 NEXTAUTH_SECRET=replace-with-a-long-random-secret
+ANALYTICS_HASH_SECRET=replace-with-a-different-long-random-secret
 ```
 
 Then start the development server:
@@ -114,6 +115,10 @@ setting `NEXT_PUBLIC_DOMAIN` by itself is not sufficient in this project.
 
 The `/admin` dashboard uses Google OAuth. The allowed email address is currently
 configured in `src/lib/auth.ts`; update it before deploying your own instance.
+
+For local dashboard work without OAuth, set both `NODE_ENV=development` and
+`ALLOW_ANONYMOUS_LOCAL_ADMIN=true`. This development-only opt-in bypasses the
+admin session check; Google OAuth remains the production access path.
 
 ## Commands
 
