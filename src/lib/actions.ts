@@ -99,3 +99,9 @@ export async function renameShortCodeAction(oldCode: string, newCode: string) {
   shortCodeValidator.parse(newCode)
   return urlService.renameShortCode(oldCode, newCode)
 }
+
+export async function promoteAliasAction(urlId: number, aliasCode: string) {
+  const id = z.number().int().positive().parse(urlId)
+  shortCodeValidator.parse(aliasCode)
+  return urlService.promoteAlias(id, aliasCode)
+}

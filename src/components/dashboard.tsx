@@ -367,37 +367,39 @@ export function Dashboard() {
                   />
                 ))}
               </div>
-              <Table className="max-lg:hidden">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-4">
-                      <Star className="h-4 w-4" />
-                    </TableHead>
-                    <TableHead>Short URL</TableHead>
-                    <TableHead>Original URL</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="w-0 text-center">Clicks</TableHead>
-                    <TableHead className="w-0 text-center">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {urls.map((url: UrlRecord) => (
-                    <UrlRecordRow
-                      key={url.id}
-                      url={url}
-                      onCopy={(url) => copyToClipboard(makeShortUrl(url))}
-                      onDelete={(url) => handleDelete(url.short_code)}
-                      onEdit={(url) => setEditDialog({ open: true, url })}
-                      onQrCode={(url) =>
-                        setQrDialog({ open: true, url, aliasCode: undefined })
-                      }
-                      onToggleStar={handleToggleStar}
-                      onAliasStats={handleAliasStats}
-                      onAnalytics={handleAnalytics}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="max-lg:hidden overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-4">
+                        <Star className="h-4 w-4" />
+                      </TableHead>
+                      <TableHead>Short URL</TableHead>
+                      <TableHead>Original URL</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="w-0 text-center">Clicks</TableHead>
+                      <TableHead className="w-0 text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {urls.map((url: UrlRecord) => (
+                      <UrlRecordRow
+                        key={url.id}
+                        url={url}
+                        onCopy={(url) => copyToClipboard(makeShortUrl(url))}
+                        onDelete={(url) => handleDelete(url.short_code)}
+                        onEdit={(url) => setEditDialog({ open: true, url })}
+                        onQrCode={(url) =>
+                          setQrDialog({ open: true, url, aliasCode: undefined })
+                        }
+                        onToggleStar={handleToggleStar}
+                        onAliasStats={handleAliasStats}
+                        onAnalytics={handleAnalytics}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Pagination */}
               {pagination && (

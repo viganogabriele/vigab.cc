@@ -1,6 +1,6 @@
 "use client"
 
-import { Star, X } from "lucide-react"
+import { ArrowUpToLine, Star, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import { env } from "@/env"
 import {
   addAliasDirect,
   addTag,
+  promoteAliasAction,
   removeAlias,
   removeTag,
   renameShortCodeAction,
@@ -64,6 +65,7 @@ export function EditUrlDialog({
   const [aliasError, setAliasError] = useState<string | null>(null)
   const [shortCodeError, setShortCodeError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [promoting, setPromoting] = useState<string | null>(null)
 
   // ── Reset whenever the dialog opens or a different URL is loaded ────────────
   const urlId = state.open ? state.url.id : 0
@@ -135,6 +137,29 @@ export function EditUrlDialog({
   }
   const removeLocalAlias = (alias: string) =>
     setLocalAliases((prev) => prev.filter((x) => x !== alias))
+
+  const handlePromote = async (alias: string) => {
+    if (!state.open) return
+    if (hasChanges) {
+      toast.error("Save changes before setting the primary code")
+      return
+    }
+    setPromoting(alias)
+    try {
+      const result = await promoteAliasAction(state.url.id, alias)
+      if (!result) {
+        toast.error("Alias not found")
+      } else {
+        toast.success(`/${alias} is now the primary code`)
+        onSuccessRef.current()
+        onClose()
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Operation failed")
+    } finally {
+      setPromoting(null)
+    }
+  }
 
   // ── Dirty-check ─────────────────────────────────────────────────────────────
   const sortStr = (arr: string[]) => [...arr].sort().join("\0")
@@ -440,17 +465,34 @@ export function EditUrlDialog({
               {localAliases.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {localAliases.map((alias) => (
-                    <Badge key={alias} variant="secondary" className="gap-1">
-                      /{alias}
+                    <span key={alias} className="flex items-center gap-1">
+                      <Badge variant="secondary" className="gap-1">
+                        /{alias}
+                        <button
+                          type="button"
+                          onClick={() => removeLocalAlias(alias)}
+                          disabled={promoting !== null || saving}
+                          className="ml-0.5 hover:text-destructive focus:outline-none disabled:opacity-40"
+                          aria-label={`Remove alias /${alias}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
                       <button
                         type="button"
-                        onClick={() => removeLocalAlias(alias)}
-                        className="ml-0.5 hover:text-destructive focus:outline-none"
-                        aria-label={`Remove alias /${alias}`}
+                        onClick={() => handlePromote(alias)}
+                        disabled={promoting !== null || saving || hasChanges}
+                        className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 focus:outline-none"
+                        title={`Set /${alias} as the primary code`}
+                        aria-label={`Set /${alias} as the primary code`}
                       >
-                        <X className="h-3 w-3" />
+                        {promoting === alias ? (
+                          "…"
+                        ) : (
+                          <ArrowUpToLine className="h-3 w-3" />
+                        )}
                       </button>
-                    </Badge>
+                    </span>
                   ))}
                 </div>
               ) : (

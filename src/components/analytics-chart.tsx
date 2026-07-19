@@ -98,15 +98,18 @@ export function BarChart({
   const labelEvery = Math.ceil(data.length / 12)
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 min-w-0 overflow-hidden">
       {/* Visual chart — decorative; the sr-only table below carries the data. */}
-      <div className="flex items-end gap-[3px] h-40" aria-hidden="true">
+      <div
+        className="flex items-end gap-[3px] h-40 overflow-hidden"
+        aria-hidden="true"
+      >
         {data.map((p) => {
           const heightPct = (p.clicks / max) * 100
           return (
             <div
               key={p.bucketStart.getTime()}
-              className="flex-1 flex flex-col justify-end items-center h-full group"
+              className="flex-1 min-w-0 flex flex-col justify-end items-center h-full group"
               title={`${fullLabelFor(p.bucketStart, type)} — ${p.clicks} clicks, ${p.unique} unique`}
             >
               <span className="text-[10px] tabular-nums text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
@@ -132,26 +135,31 @@ export function BarChart({
           </div>
         ))}
       </div>
-      {/* Accessible equivalent for keyboard / screen-reader users. */}
-      <table className="sr-only">
-        <caption>Clicks by {type}</caption>
-        <thead>
-          <tr>
-            <th>Period</th>
-            <th>Clicks</th>
-            <th>Unique</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((p) => (
-            <tr key={p.bucketStart.getTime()}>
-              <td>{fullLabelFor(p.bucketStart, type)}</td>
-              <td>{p.clicks}</td>
-              <td>{p.unique}</td>
+      {/* Accessible equivalent for keyboard / screen-reader users.
+          The outer div (not the table) carries sr-only so that the table's
+          natural height — browsers treat height:1px on <table> as min-height,
+          not a fixed height — doesn't create phantom scroll area in the dialog. */}
+      <div className="sr-only">
+        <table>
+          <caption>Clicks by {type}</caption>
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Clicks</th>
+              <th>Unique</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((p) => (
+              <tr key={p.bucketStart.getTime()}>
+                <td>{fullLabelFor(p.bucketStart, type)}</td>
+                <td>{p.clicks}</td>
+                <td>{p.unique}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -121,6 +121,29 @@ const handler = createNextHandler(
       return { status: 204, body: undefined }
     },
 
+    promoteAlias: async ({ params }) => {
+      const urlRecord = await urlService.getUrlByShortCode(params.shortCode)
+      if (!urlRecord) return { status: 404, body: { error: "URL not found" } }
+      try {
+        const updated = await urlService.promoteAlias(
+          urlRecord.id,
+          params.aliasCode
+        )
+        if (!updated) return { status: 404, body: { error: "Alias not found" } }
+        return { status: 200, body: updated }
+      } catch (error) {
+        return {
+          status: 400,
+          body: {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to promote alias",
+          },
+        }
+      }
+    },
+
     getAnalytics: async ({ params }) => {
       const analytics = await analyticsService.getAnalytics(params.shortCode)
       if (!analytics) return { status: 404, body: { error: "URL not found" } }
