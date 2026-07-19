@@ -87,6 +87,13 @@ export const contract = c.router({
     responses: { 204: z.void(), 404: APIError },
     summary: "Remove an alias from a short URL",
   },
+  promoteAlias: {
+    method: "POST",
+    path: "/urls/:shortCode/aliases/:aliasCode/promote",
+    body: z.object({}),
+    responses: { 200: URLRecord, 400: APIError, 404: APIError },
+    summary: "Promote an alias to be the primary short code",
+  },
   getAnalytics: {
     method: "GET",
     path: "/urls/:shortCode/analytics",

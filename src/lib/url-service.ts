@@ -361,6 +361,102 @@ export class UrlService {
     }
   }
 
+  /**
+   * Atomically promotes `aliasCode` to be the primary `short_code`, demoting
+   * the current primary to an alias. Analytics scopes are re-mapped so
+   * historical data stays attributed to the correct route.
+   */
+  async promoteAlias(
+    urlId: number,
+    aliasCode: string
+  ): Promise<UrlRecord | null> {
+    const client = await this.pool.connect()
+    try {
+      await client.query("BEGIN")
+
+      const urlRes = await client.query(
+        "SELECT short_code, click_count, last_clicked_at FROM urls WHERE id = $1 FOR UPDATE",
+        [urlId]
+      )
+      if (!urlRes.rows[0]) {
+        await client.query("ROLLBACK")
+        return null
+      }
+      const {
+        short_code: oldPrimary,
+        click_count: totalClicks,
+        last_clicked_at: urlLastClickedAt,
+      } = urlRes.rows[0]
+
+      const aliasRes = await client.query(
+        "SELECT id FROM url_aliases WHERE url_id = $1 AND alias_code = $2 FOR UPDATE",
+        [urlId, aliasCode]
+      )
+      if (!aliasRes.rows[0]) {
+        await client.query("ROLLBACK")
+        return null
+      }
+      const oldAliasId: number = aliasRes.rows[0].id
+
+      // Direct clicks on the current primary = total – sum of all alias clicks
+      const aliasSumRes = await client.query(
+        "SELECT COALESCE(SUM(click_count), 0) AS total FROM url_aliases WHERE url_id = $1",
+        [urlId]
+      )
+      const directClicks = Math.max(
+        0,
+        Number(totalClicks) - Number(aliasSumRes.rows[0].total)
+      )
+
+      // Demote current primary: insert it as a new alias
+      const newAliasRes = await client.query(
+        `INSERT INTO url_aliases (url_id, alias_code, click_count, last_clicked_at)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [urlId, oldPrimary, directClicks, urlLastClickedAt]
+      )
+      const newAliasId: number = newAliasRes.rows[0].id
+
+      // Reroute analytics: old primary scope (0) → new alias id
+      for (const table of [
+        "click_analytics_buckets",
+        "click_country_analytics",
+        "daily_unique_click_dedup",
+      ]) {
+        await client.query(
+          `UPDATE ${table} SET alias_id = $1 WHERE url_id = $2 AND alias_id = 0`,
+          [newAliasId, urlId]
+        )
+      }
+
+      // Reroute analytics: old alias id → primary scope (0)
+      for (const table of [
+        "click_analytics_buckets",
+        "click_country_analytics",
+        "daily_unique_click_dedup",
+      ]) {
+        await client.query(
+          `UPDATE ${table} SET alias_id = 0 WHERE url_id = $1 AND alias_id = $2`,
+          [urlId, oldAliasId]
+        )
+      }
+
+      // Remove the promoted alias entry and update the primary code
+      await client.query("DELETE FROM url_aliases WHERE id = $1", [oldAliasId])
+      await client.query(
+        "UPDATE urls SET short_code = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+        [aliasCode, urlId]
+      )
+
+      await client.query("COMMIT")
+    } catch (e) {
+      await client.query("ROLLBACK")
+      throw e
+    } finally {
+      client.release()
+    }
+    return this.getUrlByShortCode(aliasCode)
+  }
+
   async removeAlias(urlId: number, aliasCode: string): Promise<boolean> {
     const result = await this.pool.query(
       "DELETE FROM url_aliases WHERE url_id = $1 AND alias_code = $2",
@@ -422,7 +518,7 @@ export class UrlService {
         ).rows[0]?.id
       throw new Error(
         isOwnAlias
-          ? `"${newCode}" is already one of this URL's aliases. Remove it first, then rename.`
+          ? `"${newCode}" is already one of this URL's aliases. Use "set as primary" on that alias to swap.`
           : `"${newCode}" is already used as an alias.`
       )
     }

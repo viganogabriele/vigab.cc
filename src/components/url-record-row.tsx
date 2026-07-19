@@ -99,8 +99,8 @@ export function MobileRow({
 }: UrlRecordRowProps) {
   const shortUrl = makeShortUrl(url)
   return (
-    <div className="flex flex-col gap-1 border rounded-md py-2 px-4">
-      <div className="flex justify-start gap-2 items-center">
+    <div className="flex flex-col gap-1 border rounded-md py-2 px-4 min-w-0">
+      <div className="flex justify-start gap-2 items-center min-w-0">
         <StarButton
           starred={url.is_starred}
           onClick={() => onToggleStar(url)}
@@ -109,7 +109,7 @@ export function MobileRow({
           href={shortUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-400 flex-1 hover:underline font-mono"
+          className="text-blue-400 flex-1 min-w-0 hover:underline font-mono truncate"
         >
           <span className="max-sm:hidden">{shortUrl}</span>
           <span className="sm:hidden">/{url.short_code}</span>
@@ -139,11 +139,11 @@ export function MobileRow({
           <TagBadges tags={url.tags} />
         </div>
       )}
-      <div className="flex justify-start gap-2 items-center">
-        <ArrowRight className="text-blue-400" />
+      <div className="flex justify-start gap-2 items-center min-w-0">
+        <ArrowRight className="text-blue-400 shrink-0" />
         <a
           href={url.original_url}
-          className="text-blue-400 flex-1 hover:underline font-mono truncate"
+          className="text-blue-400 flex-1 min-w-0 hover:underline font-mono truncate"
           title={url.original_url}
           target="_blank"
           rel="noopener noreferrer"
@@ -257,9 +257,16 @@ export function UrlRecordRow({ url, ...props }: UrlRecordRowProps) {
         </div>
       </TableCell>
       <TableCell>
-        <span className="text-sm text-muted-foreground">
-          {url.created_at.toLocaleString()}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-sm text-muted-foreground whitespace-nowrap cursor-default">
+              {url.created_at.toLocaleDateString()}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            {url.created_at.toLocaleString()}
+          </TooltipContent>
+        </Tooltip>
       </TableCell>
       <TableCell className="text-center">
         <Tooltip>
