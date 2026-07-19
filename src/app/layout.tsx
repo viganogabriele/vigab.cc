@@ -5,8 +5,8 @@ import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 export const metadata: Metadata = {
-  title: "PoliNetwork Short URLs",
-  description: "polinetwork.org, but shorter.",
+  title: "Gabriele Viganò Short URLs",
+  description: "viganogabriele.com, but shorter.",
 }
 
 export default function RootLayout({
@@ -16,6 +16,34 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="64x64"
+          href="/favicon-dark.png?v=10"
+          media="(prefers-color-scheme: dark)"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="64x64"
+          href="/favicon-light.png?v=10"
+          media="(prefers-color-scheme: light)"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="64x64"
+          href="/favicon-dark.png?v=10"
+        />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/apple-touch-icon.png?v=10"
+        />
+      </head>
       <body>
         <QueryProvider>
           <TooltipProvider>

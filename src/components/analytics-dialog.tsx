@@ -109,7 +109,7 @@ export function AnalyticsDialog({ open, url, onClose }: AnalyticsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-x-hidden overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-mono">
             <ChartColumn className="h-4 w-4 shrink-0 text-muted-foreground" />/
